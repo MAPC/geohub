@@ -1,0 +1,33 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAPC GeoHub</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 40px; background-color: #f8fafc; color: #1e293b; }
+    header { max-width: 800px; margin: 0 auto 30px auto; }
+    h1 { font-size: 2rem; color: #0f172a; margin-bottom: 8px; }
+    p { color: #64748b; font-size: 1.1rem; margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; text-decoration: none; color: inherit; transition: all 0.2s ease; display: block; }
+    .card:hover { border-color: #0284c7; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+    .card h3 { margin: 0 0 8px 0; color: #0284c7; font-size: 1.2rem; }
+    .card p { font-size: 0.95rem; color: #475569; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🗺️ MAPC GeoHub</h1>
+    <p>Interactive spatial tools, maps, and web applications.</p>
+  </header>
+
+  <main class="grid">
+    <!-- Creative Economy Map Card -->
+    <a href="./choropleth-map-creative-economy/" class="card">
+      <h3>Creative Economy Map</h3>
+      <p>Interactive choropleth visualization of creative economy metrics across the region.</p>
+    </a>
+  </main>
+</body>
+</html>
