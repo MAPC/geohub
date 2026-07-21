@@ -2,9 +2,6 @@
 // ============================================================
 const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
 
-// Tile layers always live in Leaflet's tilePane (z-index 200), below the choropleth's
-// overlayPane (400) and the region-outline's own pane (450) — no z-index juggling needed
-// when swapping the base layer.
 function setBasemap(key) {
   const def = BASEMAPS[key] || BASEMAPS['carto-light'];
   if (baseLayer) map.removeLayer(baseLayer);
@@ -15,21 +12,35 @@ function setBasemap(key) {
 
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+
+  const SpatialSearchControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      const container = L.DomUtil.create('div', 'spatial-search-control');
+      container.innerHTML =
+        '<div class="spatial-search-box">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
+          '<input type="text" id="spatial-search-input" placeholder="Search municipality&hellip;" ' +
+            'aria-label="Search and zoom to a municipality" autocomplete="off" role="combobox" ' +
+            'aria-expanded="false" aria-controls="spatial-search-results" aria-autocomplete="list">' +
+        '</div>' +
+        '<ul id="spatial-search-results" class="spatial-search-results" role="listbox" aria-label="Municipality search results"></ul>';
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      return container;
+    }
+  });
+  new SpatialSearchControl().addTo(map);
+  initSpatialSearch();
+
   L.control.zoom({ position: 'topright' }).addTo(map);
   setBasemap(state.basemap);
 
-  // Backdrop fill of the whole region, added before the choropleth layer exists so it
-  // always renders underneath. The official per-town polygons have a handful of tiny
-  // native gaps where they don't perfectly share a border (e.g. Boston/Watertown,
-  // Chelsea/Boston) — this backdrop shows through those hairline slivers instead of
-  // the basemap, without altering any town's actual boundary.
   L.geoJSON(REGION_OUTLINE, {
     interactive: false,
     style: { fill: true, fillColor: '#F5F5F5', fillOpacity: 1, stroke: false }
   }).addTo(map);
 
-  // Dedicated pane above the choropleth (overlayPane, z-index 400) so the
-  // region outline always stays on top even after renderChoropleth() swaps layers.
   map.createPane('regionOutlinePane');
   map.getPane('regionOutlinePane').style.zIndex = 450;
   map.getPane('regionOutlinePane').style.pointerEvents = 'none';
@@ -56,9 +67,85 @@ function initMap() {
 
   initLabels();
 }
+let spotlightLayer = null;
+let spotlightTimer = null;
 
-// Municipality name labels — built once from the static boundary geometry,
-// independent of renderChoropleth() so toggling doesn't require a data re-render.
+function zoomAndHighlightMuni(muniId) {
+  const geojson = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
+  const feature = geojson.features.find(f => String(f.properties.muni_id) === muniId);
+  if (!feature) return;
+
+  if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
+  clearTimeout(spotlightTimer);
+  spotlightLayer = L.layerGroup([
+    L.geoJSON(feature, { pane: 'regionOutlinePane', interactive: false,
+      style: { color: '#FFFFFF', weight: 7, opacity: 0.9, fill: false } }),
+    L.geoJSON(feature, { pane: 'regionOutlinePane', interactive: false,
+      style: { color: '#E4572E', weight: 3, opacity: 1, fill: false, className: 'spatial-search-highlight' } })
+  ]).addTo(map);
+
+  map.flyToBounds(L.geoJSON(feature).getBounds(), { padding: [48, 48], maxZoom: 13, duration: 0.75 });
+
+  spotlightTimer = setTimeout(() => {
+    if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
+  }, 4000);
+}
+
+function initSpatialSearch() {
+  const input = document.getElementById('spatial-search-input');
+  const list = document.getElementById('spatial-search-results');
+  let matches = [];
+  let activeIndex = -1;
+
+  function renderMatches(q) {
+    matches = q ? MUNI_LIST
+      .filter(m => m.canonical.toLowerCase().includes(q.toLowerCase()))
+      .sort((a, b) => a.canonical.localeCompare(b.canonical))
+      .slice(0, 8) : [];
+    activeIndex = -1;
+    list.innerHTML = matches.length
+      ? matches.map((m, i) => '<li role="option" id="spatial-search-opt-' + i + '" data-idx="' + i + '">' +
+          '<span>' + m.canonical + '</span><span class="spatial-search-subregion">' + m.subregion + '</span></li>').join('')
+      : (q ? '<li class="spatial-search-empty">No matching municipality</li>' : '');
+    const open = matches.length > 0 || q.length > 0;
+    list.classList.toggle('open', open);
+    input.setAttribute('aria-expanded', String(open));
+  }
+
+  function setActive(idx) {
+    activeIndex = idx;
+    list.querySelectorAll('li[data-idx]').forEach(li => li.classList.toggle('active', Number(li.dataset.idx) === idx));
+    input.setAttribute('aria-activedescendant', idx >= 0 ? 'spatial-search-opt-' + idx : '');
+    const activeLi = list.querySelector('li.active');
+    if (activeLi) activeLi.scrollIntoView({ block: 'nearest' });
+  }
+
+  function pick(m) {
+    if (!m) return;
+    input.value = m.canonical;
+    matches = []; list.innerHTML = ''; list.classList.remove('open'); input.setAttribute('aria-expanded', 'false');
+    zoomAndHighlightMuni(String(m.muniId));
+  }
+
+  input.addEventListener('input', () => renderMatches(input.value.trim()));
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { if (matches.length) { e.preventDefault(); setActive(Math.min(activeIndex + 1, matches.length - 1)); } }
+    else if (e.key === 'ArrowUp') { if (matches.length) { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); } }
+    else if (e.key === 'Enter') { e.preventDefault(); pick(matches[activeIndex] || matches[0]); }
+    else if (e.key === 'Escape') { list.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); input.blur(); }
+  });
+
+  list.addEventListener('click', e => {
+    const li = e.target.closest('li[data-idx]');
+    if (li) pick(matches[Number(li.dataset.idx)]);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.spatial-search-control')) { list.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); }
+  });
+}
+
 let labelLayer;
 
 function initLabels() {
@@ -92,11 +179,6 @@ function renderChoropleth() {
 
   const { breaks, getClass } = classify(values, state.classMethod, state.numClasses);
   const colors = getColorRamp(state.colorRamp, breaks.length || state.numClasses);
-
-  // Per-class counts, for the mini histogram behind each legend swatch — lets a planner see
-  // at a glance whether the classification is actually spreading municipalities out or
-  // clustering most of them into one or two classes (the latter is the known failure mode
-  // of Equal Interval on skewed data, per references/cartographic-standards.md).
   const classCounts = new Array(breaks.length).fill(0);
   values.forEach(v => {
     const idx = getClass(v);
@@ -116,9 +198,6 @@ function renderChoropleth() {
       const value = row ? parseFloat(row[col]) : null;
       const classIdx = getClass(isNaN(value) ? null : value);
       const fillColor = classIdx === -1 ? NO_DATA_COLOR : colors[classIdx];
-      // Legend-click isolation: a pure display filter, never touches state.selectedTowns
-      // (doing so would shrink the value pool classify() draws from and shift the Jenks/
-      // Quantile breaks mid-isolation). Municipalities outside the isolated class just dim.
       const isIsolating = state.isolatedClass !== null;
       const matchesIsolation = state.isolatedClass === 'nodata' ? classIdx === -1 : classIdx === state.isolatedClass;
       if (isIsolating && !matchesIsolation) {
@@ -149,9 +228,6 @@ function renderChoropleth() {
   updateRampPreview(colors);
   renderDataPanel();
 }
-
-// Mirrors the exact colors just used for the legend/map so the swatch strip under the
-// ramp dropdown never drifts out of sync with what's actually rendered.
 function updateRampPreview(colors) {
   document.getElementById('ramp-preview').innerHTML =
     colors.map(c => '<span style="background:' + c + '"></span>').join('');
@@ -164,21 +240,16 @@ function updateLegend(breaks, colors, col, classCounts, noDataCount) {
   let html = '<div class="legend-title-row"><span class="legend-title">' + title + '</span>' +
     (isolating ? '<button type="button" id="legend-clear-isolation" class="legend-clear-btn">Show all</button>' : '') +
     '</div>';
-  // One shared scale across every row, including No Data, so the mini histogram bars are
-  // comparable to each other — a class bar twice as long really does mean twice the towns.
+  
   const maxCount = Math.max(1, ...classCounts, noDataCount || 0);
   const histBar = (count, extraClass) => {
     const pct = (count / maxCount) * 100;
-    // The CSS min-width floor keeps small-but-real counts from rounding away to nothing —
-    // but a genuinely empty class must render with no bar at all, not a fake sliver implying
-    // it has municipalities when it has none. Override the floor with an inline min-width:0.
+    
     const style = 'width:' + pct + '%' + (count === 0 ? ';min-width:0' : '');
     return '<span class="legend-hist"><span class="legend-hist-bar' + (extraClass ? ' ' + extraClass : '') +
       '" style="' + style + '"></span></span><span class="legend-count">(' + count + ')</span>';
   };
-  // Legend rows double as click-to-isolate controls — see the style() function inside
-  // renderChoropleth(), which reads state.isolatedClass to dim everything else on the map.
-  // classIdx is this row's data-class-idx: a number for a color class, or the string 'nodata'.
+  
   const legendRow = (classIdx, swatchColor, label, count, histExtraClass) => {
     const active = state.isolatedClass === classIdx;
     return '<div class="legend-row legend-row-clickable" data-class-idx="' + classIdx + '" role="button" tabindex="0" ' +
