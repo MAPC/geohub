@@ -1,14 +1,7 @@
 // 8. EXPORT MODULE
 // ============================================================
-// foreignObjectRendering (below) is needed to keep the town-name labels aligned with their
-// polygons, but it rasterizes through the browser's native SVG pipeline, which taints on the
-// cross-origin CARTO tile images even with useCORS — the basemap ends up as broken image
-// icons. Swap each visible tile to a fully self-contained base64 data: URI for the duration of
-// the capture (blob: URLs can fail to resolve from inside the serialized SVG foreignObject
-// builds). Leaflet manages each tile's fade-in via its own img.onload handler (setting
-// opacity to 1 once loaded); overwriting onload here to wait for our swap to finish clobbers
-// that handler, so the re-loaded tile is left at opacity:0 — force it back to 1 once our load
-// fires. Restore the CDN URLs afterward.
+// Swaps each map tile to a base64 data URI during export, so cross-origin basemap tiles
+// don't break the capture, then restores the original tile URLs afterward.
 async function withInlinedTiles(captureFn) {
   const imgs = Array.from(document.querySelectorAll('#map .leaflet-tile-pane img'));
   const originalSrcs = imgs.map(img => img.src);
@@ -37,12 +30,7 @@ async function withInlinedTiles(captureFn) {
   }
 }
 
-// Export the map at its true full extent — the sidebar is a floating overlay panel (see
-// docking CSS), not part of the map itself, so its open/docked state shouldn't change what
-// gets exported. The town-name labels (marker-pane divIcons) and the municipality polygons
-// (a single SVG via Leaflet's SVG renderer) are two different rendering mechanisms;
-// foreignObjectRendering hands rendering off to the browser's native SVG engine instead of
-// html2canvas's manual DOM-walking reimplementation, which is what keeps them aligned.
+// Captures the map (labels and polygons together) at full extent, regardless of sidebar state
 function captureMain() {
   const el = document.getElementById('main');
   return withInlinedTiles(() => html2canvas(el, {

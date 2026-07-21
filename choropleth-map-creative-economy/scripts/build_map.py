@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
 """
 build_map.py
-Assembles the self-contained mapc-choropleth-map.html from scripts/map_template.html
-(a lean shell with <link>/<script src> tags), scripts/styles.css, scripts/js/*.js,
-and the data files in assets/. Run this after editing any of those, or refreshing
-any of the data files — the shipped HTML must stay a single file (no server, no
-build step for the end user), so everything gets inlined at build time here instead
-of being hand-edited inside the giant HTML.
-
-The shell's own <link rel="stylesheet" href="styles.css"> and local
-<script src="js/....js"> tags (NOT the CDN <script src="https://...">  tags, which
-stay as external references per the project's CDN-only rule) exist so the shell can
-also be opened directly in a browser during development, without running this build
-first.
+Assembles mapc-choropleth-map.html from scripts/map_template.html, scripts/styles.css,
+scripts/js/*.js, and the data files in assets/. Run after editing any of those.
 
 Usage:
     python build_map.py [--output ../mapc-choropleth-map.html]
@@ -30,24 +20,21 @@ PLACEHOLDERS = {
     "__BOUNDARY_TOPOJSON__": os.path.join(REPO, "assets", "mapc-101-boundaries.topojson"),
     "__MAPC_LOOKUP__": os.path.join(REPO, "assets", "mapc-lookup.json"),
     "__SAMPLE_DATA__": os.path.join(REPO, "assets", "sample-data.json"),
-    "__REGION_OUTLINE__": os.path.join(REPO, "assets", "mapc-region-outline.geojson"),
+    "__REGION_OUTLINE__": os.path.join(REPO, "assets", "mapc-region-outline.topojson"),
 }
 
-# Binary assets inlined as base64 data URIs (not JSON, so kept separate from PLACEHOLDERS above).
+# Binary assets, inlined as base64 data URIs
 IMAGE_PLACEHOLDERS = {
     "__MAPC_LOGO__": os.path.join(REPO, "assets", "logo.png"),
 }
 
-# Matches only local relative-path files (styles.css, js/foo.js) — CDN <script src="https://...">
-# tags in <head> must NOT be touched, they stay as external references.
+# Matches only local files (styles.css, js/foo.js), not CDN <script> tags
 LOCAL_CSS_LINK_RE = re.compile(r'<link rel="stylesheet" href="((?!https?://)[^"]+\.css)">')
 LOCAL_SCRIPT_SRC_RE = re.compile(r'<script src="((?!https?://)[^"]+\.js)"></script>')
 
 
 def assemble_shell(template_path):
-    """Reads the shell template and inlines its local styles.css / js/*.js references,
-    in document order, so the result is equivalent to the old single-<style>/<script>
-    monolith this function replaces."""
+    """Reads the shell template and inlines its local styles.css / js/*.js references."""
     shell_dir = os.path.dirname(template_path)
     with open(template_path, encoding="utf-8") as f:
         html = f.read()

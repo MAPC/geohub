@@ -9,8 +9,7 @@ function bindControls() {
     loadSheet(e.target.value);
   });
   document.getElementById('column-select').addEventListener('change', e => {
-    // A different column means entirely different breaks — an isolated class index from the
-    // old column wouldn't mean anything against the new one, so drop the isolation.
+    // Drop isolation, since it doesn't apply to the new column's breaks
     state.selectedColumn = e.target.value; state.isolatedClass = null; renderChoropleth();
   });
   document.getElementById('method-select').addEventListener('change', e => {
@@ -47,8 +46,7 @@ function bindControls() {
   document.getElementById('panel-toggle').addEventListener('change', e => {
     document.getElementById('data-panel').style.display = e.target.checked ? 'flex' : 'none';
     renderDataPanel();
-    // The panel now sits beside the map (not below it), so this resizes the map's width, not
-    // just its height — Leaflet doesn't detect container resizes on its own.
+    // Tell Leaflet to resize, since it doesn't detect container resizes on its own
     map.invalidateSize();
   });
   document.querySelectorAll('.panel-tab').forEach(btn => {
@@ -85,9 +83,7 @@ function bindControls() {
   document.getElementById('export-png').addEventListener('click', exportPNG);
   document.getElementById('export-pdf').addEventListener('click', exportPDF);
 
-  // Legend content is fully replaced on every renderChoropleth() call (see updateLegend()),
-  // so listeners go on the static #legend container itself and delegate to whatever's
-  // currently inside it, rather than being re-bound after every re-render.
+  // Delegate from the static #legend container, since its contents are replaced on every render
   const legendEl = document.getElementById('legend');
   legendEl.addEventListener('click', e => {
     if (e.target.closest('#legend-clear-isolation')) { state.isolatedClass = null; renderChoropleth(); return; }
@@ -103,9 +99,7 @@ function bindControls() {
   bindDocking();
 }
 
-// Toggles legend-click isolation for a class. rawIdx is the row's data-class-idx: either the
-// string 'nodata' or a stringified number, which gets parsed back to match the numeric
-// classIdx values renderChoropleth()'s style() function computes via getClass().
+// Toggles legend-click isolation. rawIdx is 'nodata' or a stringified class number.
 function toggleIsolation(rawIdx) {
   const idx = rawIdx === 'nodata' ? 'nodata' : parseInt(rawIdx, 10);
   state.isolatedClass = (state.isolatedClass === idx) ? null : idx;

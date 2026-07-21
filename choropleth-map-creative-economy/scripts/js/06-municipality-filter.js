@@ -8,8 +8,7 @@ function populateTownFilter() {
   let html = '';
   for (const region of Object.keys(bySubregion).sort()) {
     const towns = bySubregion[region].sort((a, b) => a.canonical.localeCompare(b.canonical));
-    // Starts collapsed — filterTowns() (called below) also enforces this on every repopulation,
-    // this class just avoids a dependency on that call order for the initial render.
+    // Starts collapsed by default
     html += '<div class="subregion-group collapsed">' +
       '<div class="subregion-header">' +
         '<label><input type="checkbox" class="region-toggle" checked> ' + region +
@@ -43,8 +42,7 @@ function populateTownFilter() {
     updateTownCount();
     renderChoropleth();
   }));
-  // Collapse toggle is a dedicated button, separate from the region-name <label> above (which
-  // already has its own job: toggling every town in that subregion) — one control per action.
+  // Separate collapse button, so it doesn't interfere with the region-select label above
   container.querySelectorAll('.subregion-toggle-btn').forEach(btn => btn.addEventListener('click', () => {
     const group = btn.closest('.subregion-group');
     const collapsed = group.classList.toggle('collapsed');
@@ -57,8 +55,7 @@ function updateTownCount() {
   document.getElementById('town-count').textContent = state.selectedTowns.size;
 }
 
-// Text filter over the 101-town checklist — display-only, never touches state.selectedTowns,
-// so Select All / Deselect All still act on the full list regardless of what's hidden.
+// Text filter over the town checklist — display-only, doesn't change state.selectedTowns
 function filterTowns() {
   const q = document.getElementById('town-search').value.trim().toLowerCase();
   document.querySelectorAll('.subregion-group').forEach(group => {
@@ -69,8 +66,7 @@ function filterTowns() {
       if (match) anyVisible = true;
     });
     group.style.display = anyVisible ? '' : 'none';
-    // While actively searching, auto-expand subregions that contain a match so results are
-    // visible without an extra click. Clearing the search returns everything to collapsed.
+    // Auto-expand subregions with a match while searching; collapse again once cleared
     const shouldCollapse = q ? !anyVisible : true;
     group.classList.toggle('collapsed', shouldCollapse);
     const btn = group.querySelector('.subregion-toggle-btn');
@@ -80,6 +76,3 @@ function filterTowns() {
     }
   });
 }
-
-// Dispatches to whichever of the three data-panel tabs is active. A no-op while the panel
-// is closed, so switching columns/filters/ramps doesn't do wasted DOM work in the background.

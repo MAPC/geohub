@@ -2,6 +2,7 @@
 // ============================================================
 const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
 
+// Base tiles always render below the choropleth and region outline layers
 function setBasemap(key) {
   const def = BASEMAPS[key] || BASEMAPS['carto-light'];
   if (baseLayer) map.removeLayer(baseLayer);
@@ -13,7 +14,9 @@ function setBasemap(key) {
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
 
+  // Added before the zoom/home controls so it stacks above them in the same corner
   const SpatialSearchControl = L.Control.extend({
+    // topright, not topleft, since the sidebar overlay covers the topleft corner
     options: { position: 'topright' },
     onAdd: function() {
       const container = L.DomUtil.create('div', 'spatial-search-control');
@@ -36,16 +39,20 @@ function initMap() {
   L.control.zoom({ position: 'topright' }).addTo(map);
   setBasemap(state.basemap);
 
-  L.geoJSON(REGION_OUTLINE, {
+  const regionOutlineGeoJSON = topojson.feature(REGION_OUTLINE_TOPOJSON, REGION_OUTLINE_TOPOJSON.objects.outline);
+
+  // Backdrop fill for the region, covering tiny native gaps between adjacent town polygons
+  L.geoJSON(regionOutlineGeoJSON, {
     interactive: false,
     style: { fill: true, fillColor: '#F5F5F5', fillOpacity: 1, stroke: false }
   }).addTo(map);
 
+  // Dedicated pane so the region outline always stays on top of the choropleth
   map.createPane('regionOutlinePane');
   map.getPane('regionOutlinePane').style.zIndex = 450;
   map.getPane('regionOutlinePane').style.pointerEvents = 'none';
 
-  L.geoJSON(REGION_OUTLINE, {
+  L.geoJSON(regionOutlineGeoJSON, {
     pane: 'regionOutlinePane',
     interactive: false,
     style: { color: '#1F4E79', weight: 2, opacity: 1, fill: false, className: 'region-outline-path' }
@@ -67,6 +74,9 @@ function initMap() {
 
   initLabels();
 }
+
+// Zooms to and highlights a searched municipality, as a standalone overlay layer
+// (so the highlight survives renderChoropleth() rebuilding the choropleth layer underneath it)
 let spotlightLayer = null;
 let spotlightTimer = null;
 
@@ -77,6 +87,8 @@ function zoomAndHighlightMuni(muniId) {
 
   if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
   clearTimeout(spotlightTimer);
+
+  // White halo plus colored stroke, so the outline is visible against any basemap or fill color
   spotlightLayer = L.layerGroup([
     L.geoJSON(feature, { pane: 'regionOutlinePane', interactive: false,
       style: { color: '#FFFFFF', weight: 7, opacity: 0.9, fill: false } }),
@@ -146,6 +158,7 @@ function initSpatialSearch() {
   });
 }
 
+// Municipality name labels, built once from the boundary geometry
 let labelLayer;
 
 function initLabels() {
@@ -179,6 +192,8 @@ function renderChoropleth() {
 
   const { breaks, getClass } = classify(values, state.classMethod, state.numClasses);
   const colors = getColorRamp(state.colorRamp, breaks.length || state.numClasses);
+
+  // Per-class counts, for the mini histogram behind each legend swatch
   const classCounts = new Array(breaks.length).fill(0);
   values.forEach(v => {
     const idx = getClass(v);
@@ -198,6 +213,8 @@ function renderChoropleth() {
       const value = row ? parseFloat(row[col]) : null;
       const classIdx = getClass(isNaN(value) ? null : value);
       const fillColor = classIdx === -1 ? NO_DATA_COLOR : colors[classIdx];
+      // Isolation is just a display filter — it dims non-matching towns but doesn't
+      // change state.selectedTowns, so the classification breaks stay stable.
       const isIsolating = state.isolatedClass !== null;
       const matchesIsolation = state.isolatedClass === 'nodata' ? classIdx === -1 : classIdx === state.isolatedClass;
       if (isIsolating && !matchesIsolation) {
@@ -228,6 +245,8 @@ function renderChoropleth() {
   updateRampPreview(colors);
   renderDataPanel();
 }
+
+// Mirrors the colors currently used on the map/legend, in the swatch strip under the dropdown
 function updateRampPreview(colors) {
   document.getElementById('ramp-preview').innerHTML =
     colors.map(c => '<span style="background:' + c + '"></span>').join('');
@@ -240,16 +259,17 @@ function updateLegend(breaks, colors, col, classCounts, noDataCount) {
   let html = '<div class="legend-title-row"><span class="legend-title">' + title + '</span>' +
     (isolating ? '<button type="button" id="legend-clear-isolation" class="legend-clear-btn">Show all</button>' : '') +
     '</div>';
-  
+  // One shared scale across every row (including No Data) so histogram bars are comparable
   const maxCount = Math.max(1, ...classCounts, noDataCount || 0);
   const histBar = (count, extraClass) => {
     const pct = (count / maxCount) * 100;
-    
+    // Force zero width for an empty class, overriding the CSS min-width floor
     const style = 'width:' + pct + '%' + (count === 0 ? ';min-width:0' : '');
     return '<span class="legend-hist"><span class="legend-hist-bar' + (extraClass ? ' ' + extraClass : '') +
       '" style="' + style + '"></span></span><span class="legend-count">(' + count + ')</span>';
   };
-  
+  // Legend rows double as click-to-isolate controls. classIdx is a number for a
+  // color class, or the string 'nodata'.
   const legendRow = (classIdx, swatchColor, label, count, histExtraClass) => {
     const active = state.isolatedClass === classIdx;
     return '<div class="legend-row legend-row-clickable" data-class-idx="' + classIdx + '" role="button" tabindex="0" ' +

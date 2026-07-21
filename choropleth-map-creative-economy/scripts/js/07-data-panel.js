@@ -1,7 +1,8 @@
+// Shows whichever data-panel tab is active; no-op while the panel is closed
 function renderDataPanel() {
   const panel = document.getElementById('data-panel');
   if (panel.style.display !== 'flex') return;
-  // The Subregion/Municipality control only applies to the two chart views, not the raw table.
+  // Group-by control only applies to the chart views, not the table
   document.getElementById('chart-groupby').style.display =
     (state.panelView === 'pie' || state.panelView === 'bar') ? 'flex' : 'none';
   if (state.panelView === 'pie') renderPieChart();
@@ -32,13 +33,6 @@ function describeArcPath(cx, cy, r, startAngle, endAngle) {
   return ['M', cx, cy, 'L', startPt.x, startPt.y, 'A', r, r, 0, largeArc, 1, endPt.x, endPt.y, 'Z'].join(' ');
 }
 
-// Builds the {label, value, color}[] the pie/bar charts render from, honoring
-// state.chartGroupBy. Subregion mode sums the selected column per subregion (a fixed,
-// stable taxonomy, so each gets a stable color). Municipality mode is one entry per
-// selected town, capped to the top PIE_TOP_N + "Other" so it stays legible — colors
-// there are assigned by rank, not identity, since the top-N set changes with the data.
-// Shared by the pie chart's subregion mode and the bar chart's subregion mode — same sum,
-// different output shape per caller.
 function sumBySubregion(col) {
   const totals = {};
   state.data.forEach(r => {
@@ -52,6 +46,8 @@ function sumBySubregion(col) {
   return totals;
 }
 
+// Builds the {label, value, color}[] list the pie/bar charts render from, grouped by
+// subregion or municipality depending on state.chartGroupBy
 function computeChartEntries(col) {
   if (state.chartGroupBy === 'municipality') {
     const raw = state.data
@@ -69,8 +65,7 @@ function computeChartEntries(col) {
   return { entries, title: col + ' by subregion' };
 }
 
-// Pie chart: reads state.selectedTowns the same way the map itself does, so the chart
-// always matches what's colored on the map.
+// Renders the pie chart for the currently selected towns and column
 function renderPieChart() {
   const body = document.getElementById('data-panel-body');
   const col = state.selectedColumn;
@@ -88,7 +83,7 @@ function renderPieChart() {
   const cx = 110, cy = 110, r = 95;
   let pieMarkup;
   if (entries.length === 1) {
-    // A single 100% slice degenerates to a zero-length arc — draw a plain circle instead.
+    // A single 100% slice would be a zero-length arc, so draw a plain circle instead
     pieMarkup = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + entries[0].color +
       '" stroke="#FFFFFF" stroke-width="1.5"><title>' + entries[0].label + ': 100%</title></circle>';
   } else {
@@ -116,12 +111,8 @@ function renderPieChart() {
     '<div class="chart-legend">' + legend + '</div>';
 }
 
-// Bar chart. Municipality mode: every currently selected/filtered municipality, alphabetical,
-// uncapped (unlike the pie, a scrolling list of bars stays legible at 101 rows). Subregion
-// mode: one ranked bar per subregion, highest total first. Missing values get a "No Data" row
-// instead of a zero-length bar — a zero-length bar would visually claim the value IS zero,
-// which the hard rule against treating N/A as zero (see CLAUDE.md) applies to just as much
-// as the choropleth fill does.
+// Renders the bar chart: municipalities alphabetically, or subregions ranked by total.
+// Missing values show a "No Data" row instead of a zero-length bar.
 function renderBarChart() {
   const body = document.getElementById('data-panel-body');
   const col = state.selectedColumn;
