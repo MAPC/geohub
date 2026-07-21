@@ -1,0 +1,376 @@
+  :root {
+    --mapc-navy: #1F4E79;
+    --mapc-navy-dark: #163A5C;
+    --mapc-green: #6BAA3D;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --label-muted: #64748B;
+    --sidebar-bg: #FBFBFD;
+    --card-bg: #FFFFFF;
+    --card-border: #E4E7EC;
+    --input-border: #D6DAE1;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+    --shadow-sm: 0 2px 6px rgba(16, 24, 40, 0.06);
+    --shadow-md: 0 8px 20px rgba(16, 24, 40, 0.10);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-primary); }
+  #app { display: flex; height: 100vh; min-height: 600px; }
+
+  /* ---------- Sidebar shell ---------- */
+  #controls {
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--card-border);
+    width: 300px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+  #controls-header {
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid var(--card-border);
+    flex-shrink: 0;
+  }
+  #controls-brand { display: flex; align-items: center; gap: 10px; }
+  #brand-mark-link { flex-shrink: 0; display: block; border-radius: 6px; }
+  #brand-mark-link:focus-visible { outline: 2px solid var(--mapc-navy); outline-offset: 2px; }
+  #brand-mark { display: block; height: 32px; width: auto; border-radius: 4px; }
+  #controls h1 { font-size: 16px; line-height: 1.25; font-weight: 700; color: var(--mapc-navy); margin: 0; }
+  #controls-subtitle { font-size: 11px; color: var(--text-secondary); margin: 2px 0 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  #controls-body {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 16px 18px 10px;
+  }
+  #controls-body::-webkit-scrollbar { width: 8px; }
+  #controls-body::-webkit-scrollbar-track { background: transparent; }
+  #controls-body::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
+  #controls-body::-webkit-scrollbar-thumb:hover { background: #B6BBC5; }
+  #controls-footer {
+    flex-shrink: 0; padding: 12px 18px 16px; border-top: 1px solid var(--card-border);
+    background: var(--card-bg); box-shadow: 0 -2px 8px rgba(16,24,40,0.04);
+  }
+
+  .control-section { margin-bottom: 28px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--mapc-navy); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 0 0 10px;
+  }
+  .section-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .section-label-row .section-label { margin: 0; }
+  .control-group { margin-bottom: 20px; }
+  .control-group:last-child { margin-bottom: 0; }
+  /* Toggle rows already carry their own generous padding (44px accessible tap target, see
+     label.switch-row below) — stacking the full field gap on top of that as well left way
+     too much air between two adjacent toggles. */
+  .control-group:has(> .switch-row) { margin-bottom: 4px; }
+  /* Small, muted, uppercase field labels so the actual selected values (not the labels) carry
+     the visual weight — distinct from .section-label, which stays the bolder navy section header. */
+  .control-group label {
+    display: block; font-weight: 700; font-size: 10.5px; margin-bottom: 6px;
+    color: var(--label-muted); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
+  select, input[type=file] {
+    border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 8px 32px 8px 10px;
+    font-family: inherit; font-size: 13.5px; color: var(--text-primary); background: var(--card-bg);
+    width: 100%; box-shadow: var(--shadow-xs);
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666666' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  select:hover { border-color: #B6BBC5; }
+  select:focus { outline: none; border-color: var(--mapc-navy); box-shadow: 0 0 0 3px rgba(31,78,121,0.15); }
+
+  /* Live preview of the selected ramp's actual output colors — a native <select> can't show
+     swatches in its options, so this mirrors the legend colors right under the dropdown.
+     #ramp-select loses its bottom border/radius and the preview strip closes the box off
+     below it, so the two read as one continuous control instead of two stacked pieces. */
+  #ramp-select { border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-bottom: none; }
+  .ramp-preview {
+    display: flex; height: 10px; overflow: hidden; margin-top: 0;
+    border: 1px solid var(--input-border); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  }
+  .ramp-preview span { flex: 1; }
+
+  /* ---------- Segmented control (Number of classes) ---------- */
+  .classes-btn-group { display: flex; }
+  .classes-btn {
+    flex: 1; background: var(--sidebar-bg); border: 1px solid var(--input-border); color: var(--text-secondary);
+    font-family: inherit; font-weight: 600; font-size: 13px; padding: 7px 10px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .classes-btn + .classes-btn { border-left: none; }
+  .classes-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .classes-btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .classes-btn[aria-pressed="true"] { background: var(--mapc-navy); border-color: var(--mapc-navy); color: #FFFFFF; }
+  .classes-btn:hover:not([aria-pressed="true"]) { background: #F5F9FD; color: var(--mapc-navy); }
+  .classes-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); position: relative; z-index: 1; }
+
+  /* Search + scrollable list now read as one bordered box (see .town-filter-wrap markup) —
+     the wrapper carries the border/radius/shadow that .town-search and .town-filter used to
+     each have their own copy of, and clips both to shared rounded corners. */
+  .town-filter-wrap {
+    border: 1px solid var(--card-border); border-radius: var(--radius-md); background: var(--card-bg);
+    box-shadow: var(--shadow-xs); overflow: hidden;
+  }
+  .town-search {
+    position: sticky; top: 0; z-index: 1;
+    border: none; border-bottom: 1px solid var(--card-border); border-radius: 0;
+    padding: 9px 10px; font-family: inherit; font-size: 12.5px; color: var(--text-primary); background: var(--card-bg);
+    width: 100%; box-shadow: none; margin-bottom: 0;
+    transition: background 0.15s ease;
+  }
+  /* Inset (not outer) ring — an outer box-shadow would get clipped by the wrapper's
+     overflow:hidden since the search sits flush against the wrapper's top edge. */
+  .town-search:focus { outline: none; background: #F5F9FD; box-shadow: inset 0 0 0 2px var(--mapc-navy); }
+
+  .upload-zone {
+    border: 1.5px dashed var(--input-border); border-radius: var(--radius-md); padding: 16px 12px; text-align: center;
+    font-size: 12px; color: var(--text-secondary); cursor: pointer; background: var(--card-bg);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .upload-zone:hover { border-color: var(--mapc-navy); background: #F5F9FD; }
+  .upload-zone:focus-visible { outline: none; border-color: var(--mapc-navy); box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .upload-zone svg { opacity: 0.55; }
+  .upload-zone.dragover { border-color: var(--mapc-navy); background: #E8F4FD; }
+  .upload-zone strong { color: var(--text-primary); }
+
+  .btn-primary, .btn-secondary {
+    padding: 9px 14px; border-radius: var(--radius-sm); font-family: inherit; font-weight: 600;
+    font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+  }
+  .btn-primary { background: var(--mapc-navy); color: #FFFFFF; border: 1px solid var(--mapc-navy); }
+  .btn-primary:hover { background: var(--mapc-navy-dark); box-shadow: var(--shadow-sm); }
+  .btn-secondary { background: var(--card-bg); color: var(--mapc-navy); border: 1px solid var(--input-border); }
+  .btn-secondary:hover { border-color: var(--mapc-navy); background: #F5F9FD; }
+  .btn-primary:active, .btn-secondary:active { transform: translateY(1px); }
+  .btn-primary:focus-visible, .btn-secondary:focus-visible {
+    outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.3);
+  }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-row .btn-primary, .btn-row .btn-secondary { flex: 1; }
+
+  /* Border/radius/shadow live on .town-filter-wrap now — this is just the scrollable inner
+     list area beneath the sticky search bar. */
+  .town-filter { max-height: 220px; overflow-y: auto; padding: 8px; }
+  .town-filter::-webkit-scrollbar { width: 7px; }
+  .town-filter::-webkit-scrollbar-track { background: transparent; }
+  .town-filter::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
+  .subregion-group { margin-bottom: 2px; border-radius: var(--radius-sm); }
+  .subregion-group:not(:last-child) { border-bottom: 1px solid #EFF1F4; padding-bottom: 3px; margin-bottom: 3px; }
+  .subregion-header { font-weight: 700; font-size: 11.5px; color: var(--mapc-navy); text-transform: uppercase; letter-spacing: 0.03em; display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 4px; border-radius: 4px; }
+  .subregion-header:hover { background: #F5F9FD; }
+  .subregion-count { font-weight: 400; color: var(--text-secondary); text-transform: none; letter-spacing: normal; }
+  /* Chevron: a dedicated button, kept separate from the region-name <label> which already
+     toggles every town in the subregion — collapsing shouldn't be tangled up with selecting. */
+  .subregion-toggle-btn {
+    background: none; border: none; cursor: pointer; color: var(--mapc-navy);
+    padding: 6px; margin: -6px -4px -6px 0; border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .subregion-toggle-btn:hover { background: #E4EBF3; }
+  .subregion-toggle-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .chevron-icon { transition: transform 0.15s ease; }
+  .subregion-toggle-btn[aria-expanded="true"] .chevron-icon { transform: rotate(180deg); }
+  .subregion-group.collapsed .subregion-towns { display: none; }
+  .subregion-towns { padding-left: 6px; }
+  .town-item { font-size: 12.5px; display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; }
+  .town-item:hover { background: #F5F9FD; }
+  /* Custom checkbox: appearance:none + a hand-drawn box, with the checked state's checkmark
+     drawn the same way as the <select> arrow above (inline data-URI SVG), rather than
+     depending on each browser/OS's own rendering of accent-color. */
+  .town-filter input[type=checkbox] {
+    appearance: none; -webkit-appearance: none; margin: 0;
+    width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
+    border: 1.5px solid var(--input-border); border-radius: 4px; background: var(--card-bg);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .town-filter input[type=checkbox]:hover { border-color: var(--mapc-navy); }
+  .town-filter input[type=checkbox]:checked {
+    background-color: var(--mapc-navy); border-color: var(--mapc-navy);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' viewBox='0 0 10 8'%3E%3Cpath d='M1 4l3 3 5-6' fill='none' stroke='%23FFFFFF' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center;
+  }
+  .town-filter input[type=checkbox]:focus-visible { outline: 2px solid var(--mapc-navy); outline-offset: 2px; border-radius: 4px; }
+  .text-link-btn {
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+    font-family: inherit; font-weight: 600; font-size: 11px; color: var(--mapc-navy);
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .text-link-btn:hover { color: var(--mapc-navy-dark); }
+  .text-link-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); border-radius: 2px; }
+  .muni-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+  #warning-panel {
+    display: none; background: #FFF8ED; border: 1px solid #F0C878; border-left: 3px solid #E6A23C; border-radius: var(--radius-sm);
+    padding: 9px 11px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;
+  }
+
+  /* ---------- Toggle switches ---------- */
+  /* padding (not a bigger switch) grows the tap target toward the 44px accessible minimum */
+  label.switch-row { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 12.5px; cursor: pointer; gap: 10px; margin-bottom: 0; padding: 8px 2px; min-height: 44px; }
+  .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .switch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+  .switch-track { position: absolute; inset: 0; background: #D3D7DE; border-radius: 999px; transition: background 0.18s ease; }
+  .switch-track::before {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #FFFFFF;
+    border-radius: 50%; transition: transform 0.18s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .switch input:checked + .switch-track { background: var(--mapc-navy); }
+  .switch input:checked + .switch-track::before { transform: translateX(16px); }
+  .switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+
+  #main { flex: 1; position: relative; display: flex; flex-direction: row; }
+  /* Map, legend, and attribution share this positioning context so the legend's bottom-right
+     anchor always stays within the map's own area — it can never end up under the table panel,
+     since map-wrap (flex:1) already shrinks to make room for it. */
+  #map-wrap { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
+  #map { flex: 1; min-height: 0; }
+  #legend {
+    background: rgba(255,255,255,0.97); border: 1px solid var(--card-border); border-radius: var(--radius-md);
+    padding: 12px 14px; position: absolute; right: 12px; bottom: 12px; z-index: 500;
+    font-size: 12px; max-width: 260px; box-shadow: var(--shadow-md);
+  }
+  .legend-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  #legend .legend-title { font-weight: 700; font-size: 13px; color: var(--mapc-navy); }
+  .legend-clear-btn {
+    background: none; border: none; color: var(--mapc-navy); font-family: inherit; font-weight: 600;
+    font-size: 10.5px; cursor: pointer; padding: 2px 6px; border-radius: 4px; text-decoration: underline;
+    flex-shrink: 0;
+  }
+  .legend-clear-btn:hover { background: #F5F9FD; }
+  .legend-clear-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  /* Grid (not flex) so the swatch / label / histogram bar / count line up across every row
+     regardless of how long each row's label text is. */
+  .legend-row { display: grid; grid-template-columns: 20px 1fr 40px 24px; align-items: center; gap: 5px; margin: 4px 0; }
+  .legend-swatch { width: 20px; height: 14px; flex-shrink: 0; border-radius: 3px; border: 1px solid rgba(0,0,0,0.08); }
+  .legend-label { font-size: 12px; }
+  /* Legend rows double as click-to-isolate controls (see updateLegend() / renderChoropleth()) */
+  .legend-row-clickable { cursor: pointer; border-radius: 4px; transition: background 0.15s ease; }
+  .legend-row-clickable:hover { background: #F5F9FD; }
+  .legend-row-clickable[aria-pressed="true"] { background: #E8F4FD; }
+  .legend-row-clickable:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  /* Mini histogram: bar length is each class's share of municipalities relative to the
+     largest class (or largest of No Data vs. the classes) — see updateLegend()'s maxCount. */
+  .legend-hist { background: #EEF0F3; border-radius: 2px; height: 8px; overflow: hidden; }
+  .legend-hist-bar { display: block; height: 100%; min-width: 2px; background: var(--mapc-navy); opacity: 0.55; border-radius: 2px; }
+  .legend-hist-bar.no-data-bar { background: #9AA0AA; opacity: 0.8; }
+  .legend-count { text-align: right; font-size: 10.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .legend-rule { border-top: 1px solid var(--card-border); margin: 6px 0; }
+  .leaflet-tooltip.mapc-tooltip {
+    font-family: inherit; font-size: 13px; color: var(--text-primary); background: var(--card-bg);
+    border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 8px 10px; box-shadow: var(--shadow-md);
+  }
+  /* Leaflet gives clicked polygons a focus ring for keyboard a11y — drop it, hover styling already shows selection */
+  .leaflet-interactive:focus, .leaflet-container path:focus { outline: none; }
+  /* Match Leaflet's own zoom control to the sidebar's card language instead of its default flat squares */
+  .leaflet-bar { border: 1px solid var(--card-border) !important; border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-sm) !important; overflow: hidden; }
+  .leaflet-bar a { background: var(--card-bg) !important; color: var(--mapc-navy) !important; transition: background 0.15s ease; }
+  .leaflet-bar a:hover { background: #F5F9FD !important; }
+  .home-btn { width: 26px; height: 26px; line-height: 26px; text-align: center; background: var(--card-bg);
+    cursor: pointer; font-size: 16px; border: none; display: block; padding: 0; color: var(--mapc-navy); }
+  .home-btn:hover { background: #F5F9FD; }
+  .tt-name { font-weight: 600; font-size: 14px; color: var(--mapc-navy); }
+  .tt-subregion { font-size: 12px; color: var(--text-secondary); }
+  .tt-value { font-size: 13px; margin-top: 4px; }
+  .town-label {
+    background: none; border: none; box-shadow: none; pointer-events: none;
+    font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 600;
+    color: var(--mapc-navy); white-space: nowrap;
+    text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+  }
+  #attribution {
+    font-size: 11px; color: #999999; padding: 5px 10px; background: rgba(255,255,255,0.92);
+    position: absolute; left: 12px; bottom: 12px; z-index: 500; border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+  }
+  /* Desktop default: right-side column next to the map (not stacked below it), so it never
+     covers the legend — #map-wrap is flex:1 and simply shrinks to make room for this. */
+  #data-panel {
+    display: none; flex-direction: column; width: 380px; flex-shrink: 0; overflow: hidden;
+    border-left: 1px solid var(--card-border); background: var(--card-bg);
+  }
+  #data-panel-tabs { display: flex; gap: 4px; padding: 10px 14px 0; flex-shrink: 0; border-bottom: 1px solid var(--card-border); }
+  .panel-tab {
+    background: none; border: none; font-family: inherit; font-weight: 600; font-size: 12.5px; color: var(--text-secondary);
+    padding: 8px 12px; cursor: pointer; border-radius: var(--radius-sm) var(--radius-sm) 0 0; margin-bottom: -1px;
+    border-bottom: 2px solid transparent; transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .panel-tab:hover { color: var(--mapc-navy); }
+  .panel-tab[aria-pressed="true"] { color: var(--mapc-navy); border-bottom-color: var(--mapc-navy); }
+  .panel-tab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); border-radius: var(--radius-sm); }
+  /* Hidden by default (Table tab doesn't use it) — renderDataPanel() shows it via inline
+     style only while the Pie or Bar tab is active. */
+  #chart-groupby { display: none; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--card-border); }
+  .groupby-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+  .groupby-btn {
+    background: var(--sidebar-bg); border: 1px solid var(--input-border); color: var(--text-secondary);
+    font-family: inherit; font-weight: 600; font-size: 11.5px; padding: 5px 10px; cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .groupby-btn + .groupby-btn { border-left: none; }
+  #groupby-subregion { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  #groupby-municipality { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .groupby-btn[aria-pressed="true"] { background: var(--mapc-navy); border-color: var(--mapc-navy); color: #FFFFFF; }
+  .groupby-btn:hover:not([aria-pressed="true"]) { background: #F5F9FD; color: var(--mapc-navy); }
+  .groupby-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); position: relative; z-index: 1; }
+  #data-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 14px; }
+  #data-panel-body table { border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; border: 1px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; }
+  #data-panel-body th, #data-panel-body td { border-bottom: 1px solid var(--card-border); padding: 6px 10px; text-align: right; }
+  #data-panel-body th:first-child, #data-panel-body td:first-child { text-align: left; }
+  #data-panel-body th { background: var(--sidebar-bg); font-weight: 700; color: var(--mapc-navy); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #data-panel-body tr:last-child td { border-bottom: none; }
+
+  /* ---------- Chart widgets (pie / bar) ---------- */
+  .chart-title { font-weight: 700; font-size: 13px; color: var(--mapc-navy); margin-bottom: 12px; }
+  .chart-empty { font-size: 12.5px; color: var(--text-secondary); text-align: center; padding: 32px 8px; }
+  .pie-chart-svg { display: block; width: 100%; max-width: 220px; margin: 0 auto; }
+  .chart-legend { margin-top: 14px; font-size: 11.5px; }
+  .chart-legend-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .bar-chart-wrap { display: flex; flex-direction: column; gap: 5px; }
+  .bar-row { display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; gap: 8px; font-size: 11.5px; }
+  .bar-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+  .bar-row-track { background: #F0F1F4; border-radius: 3px; height: 12px; overflow: hidden; }
+  .bar-row-fill { height: 100%; border-radius: 3px; background: var(--mapc-navy); min-width: 2px; }
+  .bar-row-value { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .bar-row.no-data .bar-row-fill { background: #D9D9D9; }
+  .bar-row.no-data .bar-row-value { font-style: italic; }
+
+  @media (max-width: 1024px) {
+    #app { flex-direction: column; }
+    #controls { width: 100%; min-width: 0; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--card-border); }
+    /* Narrow widths: a 380px side panel doesn't fit — fall back to stacking below the map. */
+    #main { flex-direction: column; }
+    #data-panel { width: 100%; flex-shrink: 1; max-height: 40vh; border-left: none; border-top: 1px solid var(--card-border); }
+  }
+  /* Dockable panel: only on desktop widths — mobile keeps the stacked layout above */
+  @media (min-width: 1025px) {
+    #app { position: relative; }
+    #controls {
+      position: absolute; left: 0; top: 0; bottom: 0; z-index: 1000;
+      transition: transform 0.28s ease; box-shadow: var(--shadow-md);
+    }
+    #controls-handle {
+      display: flex; align-items: center; justify-content: center;
+      position: absolute; top: 50%; left: 300px; transform: translateY(-50%);
+      width: 22px; height: 56px; background: var(--card-bg); color: var(--mapc-navy);
+      border: 1px solid var(--card-border); border-left: none;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0; cursor: pointer; z-index: 1001; font-size: 15px;
+      transition: left 0.28s ease, background 0.15s ease; box-shadow: var(--shadow-sm);
+    }
+    #controls-handle:hover { background: #F5F9FD; }
+    #handle-icon { display: inline-block; transition: transform 0.28s ease; }
+    #app.docked #controls { transform: translateX(-100%); }
+    #app.docked #controls-handle { left: 0; }
+    #app.docked #handle-icon { transform: rotate(180deg); }
+  }
+  /* MAPC region outline: dark stroke + drop-shadow reads as a slightly raised edge */
+  .region-outline-path {
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(0,0,0,0.8));
+  }

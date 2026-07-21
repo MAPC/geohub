@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAPC Municipal Data Explorer</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/d3-scale@4.0.2/dist/d3-scale.min.js"></script>
+<script src="https://unpkg.com/d3-scale-chromatic@3.0.0/dist/d3-scale-chromatic.min.js"></script>
+<script src="https://unpkg.com/d3-interpolate@3.0.1/dist/d3-interpolate.min.js"></script>
+<script src="https://unpkg.com/d3-color@3.1.0/dist/d3-color.min.js"></script>
+<script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <aside id="controls">
+    <div id="controls-header">
+      <div id="controls-brand">
+        <a id="brand-mark-link" href="https://www.mapc.org/" target="_blank" rel="noopener noreferrer" aria-label="MAPC home page (opens in a new tab)">
+          <img id="brand-mark" src="__MAPC_LOGO__" alt="MAPC logo">
+        </a>
+        <div>
+          <h1>MAPC Municipal Data Explorer</h1>
+          <p id="controls-subtitle">Choropleth Map Builder</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="controls-body">
+      <section class="control-section">
+        <h2 class="section-label">Data Source</h2>
+        <div class="control-group">
+          <label for="file-input">Upload spreadsheet</label>
+          <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Upload spreadsheet file, .xlsx, .xls, or .csv">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M6 10l6-6 6 6"/><path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>
+            <div><strong>Click to upload</strong> or drag and drop<br>.xlsx, .xls, or .csv</div>
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
+          </div>
+          <div id="upload-status" role="status" aria-live="polite" style="font-size:11px;color:var(--text-secondary);margin-top:6px;"></div>
+        </div>
+
+        <div class="control-group" id="sheet-group" style="display:none;">
+          <label for="sheet-select">Sheet</label>
+          <select id="sheet-select"></select>
+        </div>
+
+        <div id="warning-panel" role="alert"></div>
+      </section>
+
+      <section class="control-section">
+        <h2 class="section-label">Visualization</h2>
+        <div class="control-group">
+          <label for="column-select">Data column</label>
+          <select id="column-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="method-select">Classification method</label>
+          <select id="method-select">
+            <option value="jenks" selected>Natural Breaks (Jenks)</option>
+            <option value="quantile">Quantiles</option>
+            <option value="equal">Equal Interval</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label id="classes-group-label">Number of classes</label>
+          <div class="classes-btn-group" role="group" aria-labelledby="classes-group-label">
+            <button type="button" class="classes-btn" data-classes="3" aria-pressed="false">3</button>
+            <button type="button" class="classes-btn" data-classes="5" aria-pressed="true">5</button>
+            <button type="button" class="classes-btn" data-classes="7" aria-pressed="false">7</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="ramp-select">Color ramp</label>
+          <select id="ramp-select">
+            <option value="mapc-blue" selected>MAPC Blue</option>
+            <option value="mapc-green">MAPC Green</option>
+            <option value="blues">ColorBrewer Blues</option>
+            <option value="greens">ColorBrewer Greens</option>
+            <option value="oranges">Oranges</option>
+            <option value="purples">ColorBrewer Purples</option>
+            <option value="ylgnbu">ColorBrewer YlGnBu</option>
+          </select>
+          <div class="ramp-preview" id="ramp-preview" aria-hidden="true"></div>
+        </div>
+
+        <div class="control-group">
+          <label for="basemap-select">Basemap</label>
+          <select id="basemap-select">
+            <option value="carto-light" selected>Light</option>
+            <option value="carto-voyager">Voyager</option>
+            <option value="carto-dark">Dark</option>
+            <option value="osm">OpenStreetMap</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <div class="section-label-row">
+          <h2 class="section-label">Municipalities <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--text-secondary);">(<span id="town-count"></span> shown)</span></h2>
+          <div class="muni-actions">
+            <button type="button" class="text-link-btn" id="select-all">Select All</button>
+            <button type="button" class="text-link-btn" id="deselect-all">Deselect All</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="town-filter-wrap">
+            <input type="text" id="town-search" class="town-search" placeholder="Search municipalities&hellip;" aria-label="Search municipalities">
+            <div class="town-filter" id="town-filter"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <h2 class="section-label">Display</h2>
+        <div class="control-group">
+          <label class="switch-row" for="label-toggle">
+            <span>Show municipality names</span>
+            <span class="switch"><input type="checkbox" id="label-toggle"><span class="switch-track"></span></span>
+          </label>
+        </div>
+        <div class="control-group">
+          <label class="switch-row" for="panel-toggle">
+            <span>Data panel (table &amp; charts)</span>
+            <span class="switch"><input type="checkbox" id="panel-toggle"><span class="switch-track"></span></span>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <div id="controls-footer">
+      <div class="control-group btn-row" style="margin-bottom:0;">
+        <button class="btn-primary" id="export-png"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M6 12l6 6 6-6"/><path d="M4 20h16"/></svg>Download PNG</button>
+        <button class="btn-secondary" id="export-pdf"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="M6 12l6 6 6-6"/><path d="M4 20h16"/></svg>Download PDF</button>
+      </div>
+    </div>
+  </aside>
+  <div id="controls-handle" title="Toggle controls" aria-label="Toggle controls panel"><span id="handle-icon">&#8249;</span></div>
+
+  <main id="main">
+    <div id="map-wrap">
+      <div id="map" aria-label="Choropleth map of business-establishment counts across MAPC's Greater Boston municipalities" role="img"></div>
+      <div id="legend"></div>
+      <div id="attribution">
+        Municipal boundaries: Metropolitan Area Planning Council (MAPC) &middot; Map: MAPC | mapc.org
+      </div>
+    </div>
+    <div id="data-panel">
+      <div id="data-panel-tabs" role="group" aria-label="Data panel view">
+        <button type="button" class="panel-tab" id="tab-table" aria-pressed="true" data-view="table">Table</button>
+        <button type="button" class="panel-tab" id="tab-pie" aria-pressed="false" data-view="pie">Pie chart</button>
+        <button type="button" class="panel-tab" id="tab-bar" aria-pressed="false" data-view="bar">Bar chart</button>
+      </div>
+      <div id="chart-groupby" role="group" aria-label="Group chart by">
+        <span class="groupby-label">Group by</span>
+        <button type="button" class="groupby-btn" id="groupby-subregion" aria-pressed="true" data-group="subregion">Subregion</button>
+        <button type="button" class="groupby-btn" id="groupby-municipality" aria-pressed="false" data-group="municipality">Municipality</button>
+      </div>
+      <div id="data-panel-body"></div>
+    </div>
+  </main>
+</div>
+
+<script src="js/01-data-placeholders.js"></script>
+<script src="js/02-state.js"></script>
+<script src="js/03-data-matching.js"></script>
+<script src="js/04-classify.js"></script>
+<script src="js/05-map-render.js"></script>
+<script src="js/06-municipality-filter.js"></script>
+<script src="js/07-data-panel.js"></script>
+<script src="js/08-controls.js"></script>
+<script src="js/09-export.js"></script>
+<script src="js/10-main.js"></script>
+</body>
+</html>
+
