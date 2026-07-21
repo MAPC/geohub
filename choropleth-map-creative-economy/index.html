@@ -296,6 +296,37 @@
   .home-btn { width: 26px; height: 26px; line-height: 26px; text-align: center; background: var(--card-bg);
     cursor: pointer; font-size: 16px; border: none; display: block; padding: 0; color: var(--mapc-navy); }
   .home-btn:hover { background: #F5F9FD; }
+
+  /* Instant spatial search — Leaflet control at topleft (unused corner; zoom/home live at topright) */
+  .spatial-search-control { width: 230px; font-family: inherit; }
+  .spatial-search-box {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm); padding: 0 10px;
+  }
+  .spatial-search-box svg { flex-shrink: 0; color: var(--text-secondary); }
+  .spatial-search-box:focus-within { box-shadow: 0 0 0 2px var(--mapc-navy); }
+  #spatial-search-input {
+    border: none; outline: none; background: transparent; font-family: inherit; font-size: 12.5px;
+    color: var(--text-primary); padding: 8px 0; width: 100%;
+  }
+  .spatial-search-results {
+    list-style: none; margin: 4px 0 0; padding: 4px; display: none;
+    background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md); max-height: 220px; overflow-y: auto;
+  }
+  .spatial-search-results.open { display: block; }
+  .spatial-search-results li {
+    padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  }
+  .spatial-search-results li:hover, .spatial-search-results li.active { background: #F5F9FD; }
+  .spatial-search-subregion { font-size: 10.5px; color: var(--text-secondary); flex-shrink: 0; }
+  .spatial-search-empty { color: var(--text-secondary); cursor: default; }
+  .spatial-search-empty:hover { background: none; }
+  .spatial-search-highlight { animation: spatial-search-pulse 1.1s ease-in-out 2; }
+  @keyframes spatial-search-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
   .tt-name { font-weight: 600; font-size: 14px; color: var(--mapc-navy); }
   .tt-subregion { font-size: 12px; color: var(--text-secondary); }
   .tt-value { font-size: 13px; margin-top: 4px; }
@@ -463,11 +494,11 @@
           <select id="ramp-select">
             <option value="mapc-blue" selected>MAPC Blue</option>
             <option value="mapc-green">MAPC Green</option>
+            <option value="blues">ColorBrewer Blues</option>
+            <option value="greens">ColorBrewer Greens</option>
             <option value="oranges">Oranges</option>
-            <option value="blues">Blues</option>
-            <option value="greens">Greens</option>
-            <option value="purples">Purples</option>
-            <option value="ylgnbu">YlGnBu</option>
+            <option value="purples">ColorBrewer Purples</option>
+            <option value="ylgnbu">ColorBrewer YlGnBu</option>
           </select>
           <div class="ramp-preview" id="ramp-preview" aria-hidden="true"></div>
         </div>
@@ -801,6 +832,32 @@ function setBasemap(key) {
 
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView(HOME_VIEW.center, HOME_VIEW.zoom);
+
+  // Added before the zoom/home controls below so it stacks above them in the topright
+  // corner — Leaflet stacks same-corner controls in add order, first added ends up on top.
+  const SpatialSearchControl = L.Control.extend({
+    // topright, not topleft — #controls (the sidebar) is an absolutely-positioned overlay on
+    // top of a full-bleed #map (so the collapse toggle doesn't require resizing the Leaflet
+    // instance), which means anything at topleft renders underneath/behind the sidebar.
+    options: { position: 'topright' },
+    onAdd: function() {
+      const container = L.DomUtil.create('div', 'spatial-search-control');
+      container.innerHTML =
+        '<div class="spatial-search-box">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
+          '<input type="text" id="spatial-search-input" placeholder="Search municipality&hellip;" ' +
+            'aria-label="Search and zoom to a municipality" autocomplete="off" role="combobox" ' +
+            'aria-expanded="false" aria-controls="spatial-search-results" aria-autocomplete="list">' +
+        '</div>' +
+        '<ul id="spatial-search-results" class="spatial-search-results" role="listbox" aria-label="Municipality search results"></ul>';
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      return container;
+    }
+  });
+  new SpatialSearchControl().addTo(map);
+  initSpatialSearch();
+
   L.control.zoom({ position: 'topright' }).addTo(map);
   setBasemap(state.basemap);
 
@@ -841,6 +898,94 @@ function initMap() {
   new HomeControl().addTo(map);
 
   initLabels();
+}
+
+// Instant spatial search: autocomplete over MUNI_LIST (scripts/js/02-state.js), zooms the map
+// to the picked municipality's actual boundary and drops a temporary outline on top of it.
+// Deliberately a standalone overlay layer rather than a style tweak inside renderChoropleth()'s
+// L.geoJSON — that layer gets torn down and rebuilt on every column/ramp/class change, so baking
+// a "highlighted" state into it would vanish the moment the classification changes underneath it.
+let spotlightLayer = null;
+let spotlightTimer = null;
+
+function zoomAndHighlightMuni(muniId) {
+  const geojson = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
+  const feature = geojson.features.find(f => String(f.properties.muni_id) === muniId);
+  if (!feature) return;
+
+  if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
+  clearTimeout(spotlightTimer);
+
+  // White halo underneath + accent stroke on top so the outline reads against any basemap
+  // or choropleth fill color, light or dark — a single-color stroke alone can wash out against
+  // a similarly-colored class fill.
+  spotlightLayer = L.layerGroup([
+    L.geoJSON(feature, { pane: 'regionOutlinePane', interactive: false,
+      style: { color: '#FFFFFF', weight: 7, opacity: 0.9, fill: false } }),
+    L.geoJSON(feature, { pane: 'regionOutlinePane', interactive: false,
+      style: { color: '#E4572E', weight: 3, opacity: 1, fill: false, className: 'spatial-search-highlight' } })
+  ]).addTo(map);
+
+  map.flyToBounds(L.geoJSON(feature).getBounds(), { padding: [48, 48], maxZoom: 13, duration: 0.75 });
+
+  spotlightTimer = setTimeout(() => {
+    if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
+  }, 4000);
+}
+
+function initSpatialSearch() {
+  const input = document.getElementById('spatial-search-input');
+  const list = document.getElementById('spatial-search-results');
+  let matches = [];
+  let activeIndex = -1;
+
+  function renderMatches(q) {
+    matches = q ? MUNI_LIST
+      .filter(m => m.canonical.toLowerCase().includes(q.toLowerCase()))
+      .sort((a, b) => a.canonical.localeCompare(b.canonical))
+      .slice(0, 8) : [];
+    activeIndex = -1;
+    list.innerHTML = matches.length
+      ? matches.map((m, i) => '<li role="option" id="spatial-search-opt-' + i + '" data-idx="' + i + '">' +
+          '<span>' + m.canonical + '</span><span class="spatial-search-subregion">' + m.subregion + '</span></li>').join('')
+      : (q ? '<li class="spatial-search-empty">No matching municipality</li>' : '');
+    const open = matches.length > 0 || q.length > 0;
+    list.classList.toggle('open', open);
+    input.setAttribute('aria-expanded', String(open));
+  }
+
+  function setActive(idx) {
+    activeIndex = idx;
+    list.querySelectorAll('li[data-idx]').forEach(li => li.classList.toggle('active', Number(li.dataset.idx) === idx));
+    input.setAttribute('aria-activedescendant', idx >= 0 ? 'spatial-search-opt-' + idx : '');
+    const activeLi = list.querySelector('li.active');
+    if (activeLi) activeLi.scrollIntoView({ block: 'nearest' });
+  }
+
+  function pick(m) {
+    if (!m) return;
+    input.value = m.canonical;
+    matches = []; list.innerHTML = ''; list.classList.remove('open'); input.setAttribute('aria-expanded', 'false');
+    zoomAndHighlightMuni(String(m.muniId));
+  }
+
+  input.addEventListener('input', () => renderMatches(input.value.trim()));
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { if (matches.length) { e.preventDefault(); setActive(Math.min(activeIndex + 1, matches.length - 1)); } }
+    else if (e.key === 'ArrowUp') { if (matches.length) { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); } }
+    else if (e.key === 'Enter') { e.preventDefault(); pick(matches[activeIndex] || matches[0]); }
+    else if (e.key === 'Escape') { list.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); input.blur(); }
+  });
+
+  list.addEventListener('click', e => {
+    const li = e.target.closest('li[data-idx]');
+    if (li) pick(matches[Number(li.dataset.idx)]);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.spatial-search-control')) { list.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); }
+  });
 }
 
 // Municipality name labels — built once from the static boundary geometry,
