@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 build_map.py
-Assembles mapc-choropleth-map.html from scripts/map_template.html, scripts/styles.css,
+Assembles index.html from scripts/map_template.html, scripts/styles.css,
 scripts/js/*.js, and the data files in assets/. Run after editing any of those.
 
 Usage:
-    python build_map.py [--output ../mapc-choropleth-map.html]
+    python build_map.py [--output ../index.html]
 """
 
 import argparse
@@ -57,7 +57,7 @@ def assemble_shell(template_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Build the self-contained choropleth HTML")
-    parser.add_argument("--output", default=os.path.join(REPO, "mapc-choropleth-map.html"))
+    parser.add_argument("--output", default=os.path.join(REPO, "index.html"))
     parser.add_argument("--template", default=os.path.join(REPO, "scripts", "map_template.html"))
     args = parser.parse_args()
 
