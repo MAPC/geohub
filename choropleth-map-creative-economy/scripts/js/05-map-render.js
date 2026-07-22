@@ -1,5 +1,3 @@
-// 6. MAP MODULE
-// ============================================================
 const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
 
 // Base tiles always render below the choropleth and region outline layers

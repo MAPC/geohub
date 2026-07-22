@@ -1,5 +1,3 @@
-// 8. EXPORT MODULE
-// ============================================================
 // Swaps each map tile to a base64 data URI during export, so cross-origin basemap tiles
 // don't break the capture, then restores the original tile URLs afterward.
 async function withInlinedTiles(captureFn) {

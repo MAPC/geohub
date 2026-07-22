@@ -27,22 +27,6 @@ SUBREGIONS_SRC = os.path.join(DATA, "MAPC_Subregional_Boundaries.geojson")
 # from the fill polygons it's drawn on top of.
 
 SIMPLIFY_TOLERANCE = 0.00005  # ~6m
-# The old value (0.001, ~111m) was carried over from the prior TIGER/Line-derived boundaries,
-# which are themselves already generalized at roughly that scale. MAPC_Towns_poly_2025.geojson
-# is much higher-fidelity and genuinely resolves urban waterfront detail (small wharves/points/
-# river bends on the order of tens of meters) down to a few meters between vertices. Simplifying
-# THAT data at 111m compresses those real small features past the point of validity -- toposimplify
-# doesn't just round them off, it can fold a small loop/point back on itself, producing a
-# self-intersecting ring. repair_invalid()'s make_valid() call then makes that valid again, but
-# only by lopping the tangle into a sharp spike/triangle -- a real reported bug, not a display
-# quirk (visually confirmed against the pristine source with a matplotlib render: at 0.001 a real
-# rounded ~100m point near Boston's Long Wharf collapsed into one jutting spike; 0.00005 preserves
-# it as the rounded point it actually is). 0.00005 was the finest tolerance where going any finer
-# stopped reducing the remaining self-intersection count (2 residual, both pre-existing pinch/
-# near-touch points in the pristine data itself, e.g. Wayland -- not over-simplification), so
-# anything finer than this just grows the file for no further correctness benefit. Trade-off:
-# ~5x larger boundaries file (82KB -> ~424KB) for correct, non-self-intersecting coastal detail.
-
 
 def repair_invalid(geom):
     """Fix self-intersections that topojson's toposimplify introduces on complex coastal

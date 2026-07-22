@@ -1,5 +1,3 @@
-// 5. CLASSIFICATION
-// ============================================================
 function classify(values, method, numClasses) {
   const clean = values.filter(v => v !== null && !isNaN(v));
   if (clean.length === 0) return { breaks: [], getClass: () => -1 };
@@ -42,5 +40,3 @@ function getColorRamp(rampName, numClasses) {
   const interp = d3.interpolateRgbBasis(base);
   return d3.quantize(interp, numClasses);
 }
-
-// ============================================================

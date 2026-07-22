@@ -1,5 +1,3 @@
-// 3. APPLICATION STATE
-// ============================================================
 const state = {
   data: [],              // parsed rows, each with _muniId attached after matching
   selectedColumn: null,
@@ -67,5 +65,3 @@ function topNPlusOther(entries, n) {
   if (otherTotal > 0) top.push({ label: 'Other (' + (sorted.length - n) + ')', value: otherTotal });
   return top;
 }
-
-// ============================================================

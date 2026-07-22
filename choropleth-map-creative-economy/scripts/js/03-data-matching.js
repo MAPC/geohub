@@ -1,5 +1,3 @@
-// 4. DATA MODULE
-// ============================================================
 function normalizeName(name) {
   return String(name).trim().toLowerCase()
     .replace(/^(town of |city of |the )/, '')
@@ -81,5 +79,3 @@ function showUnmatchedWarning(unmatched) {
   panel.innerHTML = '<strong>' + unmatched.length + ' unmatched name(s)</strong> — not shown on map: ' +
     unmatched.map(n => String(n)).join(', ');
 }
-
-// ============================================================
