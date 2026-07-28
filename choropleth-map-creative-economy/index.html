@@ -330,6 +330,7 @@
     position: absolute; left: 12px; bottom: 12px; z-index: 500; border-radius: var(--radius-sm);
     border: 1px solid var(--card-border);
   }
+  #attribution a { color: inherit; text-decoration: underline; }
   /* Desktop default: data panel sits beside the map, not stacked below it */
   #data-panel {
     display: none; flex-direction: column; width: 380px; flex-shrink: 0; overflow: hidden;
@@ -548,7 +549,7 @@
       <div id="map" aria-label="Choropleth map of business-establishment counts across MAPC's Greater Boston municipalities" role="img"></div>
       <div id="legend"></div>
       <div id="attribution">
-        Municipal boundaries: Metropolitan Area Planning Council (MAPC) &middot; Map: MAPC | mapc.org &middot; Created with assistance from Claude AI
+        Municipal boundaries: Metropolitan Area Planning Council (MAPC) &middot; Map: MAPC | mapc.org &middot; Industries included: <a href="https://github.com/MAPC/postgres_data_updates/blob/main/creative_economy/nefa_code_list/naics_2022_nefa.csv" target="_blank" rel="noopener noreferrer">NEFA code list (NAICS 2022)</a> &middot; Created with assistance from Claude AI
       </div>
     </div>
     <div id="data-panel">
