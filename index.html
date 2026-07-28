@@ -14,6 +14,8 @@
     .card:hover { border-color: #0284c7; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
     .card h3 { margin: 0 0 8px 0; color: #0284c7; font-size: 1.2rem; }
     .card p { font-size: 0.95rem; color: #475569; line-height: 1.4; }
+    .card-source { margin: 6px 2px 0; font-size: 0.85rem; }
+    .card-source a { color: #0284c7; }
   </style>
 </head>
 <body>
@@ -24,10 +26,13 @@
 
   <main class="grid">
     <!-- Creative Economy Map Card -->
-    <a href="./choropleth-map-creative-economy/" class="card">
-      <h3>Creative Economy Map</h3>
-      <p>Interactive choropleth visualization of creative economy metrics across the region.</p>
-    </a>
+    <div>
+      <a href="./choropleth-map-creative-economy/" class="card">
+        <h3>Creative Economy Map</h3>
+        <p>Interactive choropleth visualization of creative economy metrics across the region.</p>
+      </a>
+      <p class="card-source">Industries included: <a href="https://github.com/MAPC/postgres_data_updates/blob/main/creative_economy/nefa_code_list/naics_2022_nefa.csv" target="_blank" rel="noopener noreferrer">NEFA code list (NAICS 2022)</a></p>
+    </div>
   </main>
 </body>
 </html>
