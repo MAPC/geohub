@@ -28,7 +28,14 @@ def main():
     args = parser.parse_args()
 
     with open(args.input, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+        reader = csv.DictReader(f)
+        town_col, category_cols = reader.fieldnames[0], reader.fieldnames[1:]
+        rows = []
+        for r in reader:
+            total = sum(int(r[c]) for c in category_cols)
+            row = {town_col: r[town_col], "All Creative Enterprises": total}
+            row.update({c: r[c] for c in category_cols})
+            rows.append(row)
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     with open(args.output, "w", encoding="utf-8") as f:
