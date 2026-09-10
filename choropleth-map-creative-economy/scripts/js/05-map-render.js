@@ -2,11 +2,18 @@ const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
 
 // Base tiles always render below the choropleth and region outline layers
 function setBasemap(key) {
-  const def = BASEMAPS[key] || BASEMAPS['carto-light'];
+  const def = BASEMAPS[key] || BASEMAPS['light'];
   if (baseLayer) map.removeLayer(baseLayer);
-  baseLayer = L.tileLayer(def.url, {
-    attribution: def.attribution, subdomains: def.subdomains, maxZoom: 19, crossOrigin: true
-  }).addTo(map);
+  if (referenceLayer) { map.removeLayer(referenceLayer); referenceLayer = null; }
+  const opts = {
+    attribution: def.attribution, subdomains: def.subdomains || 'abc',
+    maxZoom: 19, maxNativeZoom: def.maxNativeZoom || 19, crossOrigin: true
+  };
+  baseLayer = L.tileLayer(def.url, opts).addTo(map);
+  // Labels ride in the same tile pane, so they stay under the choropleth
+  if (def.reference) {
+    referenceLayer = L.tileLayer(def.reference, Object.assign({}, opts, { attribution: '' })).addTo(map);
+  }
 }
 
 function initMap() {

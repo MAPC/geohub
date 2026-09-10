@@ -5,14 +5,14 @@ const state = {
   classMethod: 'jenks',
   numClasses: 5,
   colorRamp: 'mapc-blue',
-  basemap: 'carto-light',
+  basemap: 'light',
   workbook: null,        // parsed SheetJS workbook, kept so switching sheets doesn't need re-upload
   panelView: 'table',    // which tab is active in the data panel: 'table' | 'pie' | 'bar'
   chartGroupBy: 'subregion',  // shared by the Pie and Bar tabs: 'subregion' | 'municipality'
   isolatedClass: null    // legend-click isolation: null | 0..numClasses-1 | 'nodata'
 };
 
-let map, choroplethLayer, baseLayer;
+let map, choroplethLayer, baseLayer, referenceLayer;
 const RAMPS = {
   'mapc-blue':  ['#D6E8F7','#93C4DE','#4A97C9','#1F6FB5','#1F4E79'],
   'mapc-green': ['#E8F5E0','#B8DFA3','#88C96D','#6BAA3D','#3D7A1C'],
@@ -24,12 +24,22 @@ const RAMPS = {
   'ylgnbu':     ['#FFFFCC','#A1DAB4','#41B6C4','#2C7FB8','#253494']
 };
 const NO_DATA_COLOR = '#D9D9D9';
-// Free basemap tile sets, no API key required
+// Basemap tile sets that need no API key.
+// CARTO's basemaps.cartocdn.com now stamps "API KEY REQUIRED" across every
+// unauthenticated tile, so these are Esri's public ArcGIS Online services.
+// The gray canvases ship labels as a separate `reference` layer drawn over the
+// base, and stop at native zoom 16 -- past that Leaflet upsamples z16 rather
+// than requesting tiles that come back blank.
 const BASEMAPS = {
-  'carto-light':   { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'carto-voyager': { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'carto-dark':    { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'osm':           { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', subdomains: 'abc' }
+  'light':   { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+               reference: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>', maxNativeZoom: 16 },
+  'streets': { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>' },
+  'dark':    { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+               reference: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>', maxNativeZoom: 16 },
+  'osm':     { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', subdomains: 'abc' }
 };
 
 // Categorical colors for subregions (ColorBrewer "Paired"), separate from the choropleth ramps above
