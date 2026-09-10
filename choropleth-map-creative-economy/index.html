@@ -14,15 +14,15 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/d3-color@3.1.0/dist/d3-color.min.js"></script>
+<script src="https://unpkg.com/d3-interpolate@3.0.1/dist/d3-interpolate.min.js"></script>
 <script src="https://unpkg.com/d3-scale@4.0.2/dist/d3-scale.min.js"></script>
 <script src="https://unpkg.com/d3-scale-chromatic@3.0.0/dist/d3-scale-chromatic.min.js"></script>
-<script src="https://unpkg.com/d3-interpolate@3.0.1/dist/d3-interpolate.min.js"></script>
-<script src="https://unpkg.com/d3-color@3.1.0/dist/d3-color.min.js"></script>
 <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
@@ -41,9 +41,33 @@
     --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
     --shadow-sm: 0 2px 6px rgba(16, 24, 40, 0.06);
     --shadow-md: 0 8px 20px rgba(16, 24, 40, 0.10);
+
+    /* Type scale. Integers only -- the half-pixel sizes these replaced were
+       nudged one at a time rather than chosen from a scale. */
+    --text-2xs: 10px;
+    --text-xs: 11px;
+    --text-sm: 12px;
+    --text-base: 13px;
+    --text-md: 14px;
+    --text-lg: 16px;
+
+    /* The two interaction tints, already used as literals a dozen times over */
+    --tint-hover: #F5F9FD;
+    --tint-active: #E8F4FD;
+    --border-strong: #B6BBC5;
+    --scrollbar-thumb: #D3D7DE;
+
+    /* One focus ring. There were three alphas of the same navy, differing by
+       accident rather than by state. */
+    --focus-ring: 0 0 0 3px rgba(31, 78, 121, 0.25);
+
+    /* Two speeds: controls answer instantly, panels travel. */
+    --dur-fast: 120ms;
+    --dur-slow: 280ms;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-primary); }
+  html, body { margin: 0; height: 100%; font-family: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-primary); }
   #app { display: flex; height: 100vh; min-height: 600px; }
 
   /* ---------- Sidebar shell ---------- */
@@ -64,16 +88,16 @@
   #brand-mark-link { flex-shrink: 0; display: block; border-radius: 6px; }
   #brand-mark-link:focus-visible { outline: 2px solid var(--mapc-navy); outline-offset: 2px; }
   #brand-mark { display: block; height: 32px; width: auto; border-radius: 4px; }
-  #controls h1 { font-size: 16px; line-height: 1.25; font-weight: 700; color: var(--mapc-navy); margin: 0; }
-  #controls-subtitle { font-size: 11px; color: var(--text-secondary); margin: 2px 0 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  #controls h1 { font-size: var(--text-lg); line-height: 1.25; font-weight: 700; color: var(--mapc-navy); margin: 0; letter-spacing: -0.01em; }
+  #controls-subtitle { font-size: var(--text-xs); color: var(--text-secondary); margin: 2px 0 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
   #controls-body {
     flex: 1; min-height: 0; overflow-y: auto;
     padding: 16px 18px 10px;
   }
   #controls-body::-webkit-scrollbar { width: 8px; }
   #controls-body::-webkit-scrollbar-track { background: transparent; }
-  #controls-body::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
-  #controls-body::-webkit-scrollbar-thumb:hover { background: #B6BBC5; }
+  #controls-body::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 999px; }
+  #controls-body::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
   #controls-footer {
     flex-shrink: 0; padding: 12px 18px 16px; border-top: 1px solid var(--card-border);
     background: var(--card-bg); box-shadow: 0 -2px 8px rgba(16,24,40,0.04);
@@ -81,10 +105,11 @@
 
   .control-section { margin-bottom: 28px; }
   .section-label {
-    font-size: 11px; font-weight: 700; color: var(--mapc-navy); text-transform: uppercase;
-    letter-spacing: 0.05em; margin: 0 0 10px;
+    font-size: var(--text-xs); font-weight: 700; color: var(--mapc-navy); text-transform: uppercase;
+    letter-spacing: 0.04em; margin: 0 0 10px;
   }
-  .section-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .section-label-count { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--text-secondary); white-space: nowrap; }
+  .section-label-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; margin-bottom: 10px; }
   .section-label-row .section-label { margin: 0; }
   .control-group { margin-bottom: 20px; }
   .control-group:last-child { margin-bottom: 0; }
@@ -92,21 +117,21 @@
   .control-group:has(> .switch-row) { margin-bottom: 4px; }
   /* Small muted uppercase field labels, distinct from the bolder .section-label headers */
   .control-group label {
-    display: block; font-weight: 700; font-size: 10.5px; margin-bottom: 6px;
-    color: var(--label-muted); text-transform: uppercase; letter-spacing: 0.04em;
+    display: block; font-weight: 600; font-size: var(--text-sm); margin-bottom: 6px;
+    color: var(--label-muted);
   }
 
   select, input[type=file] {
     border: 1px solid var(--input-border); border-radius: var(--radius-sm); padding: 8px 32px 8px 10px;
-    font-family: inherit; font-size: 13.5px; color: var(--text-primary); background: var(--card-bg);
-    width: 100%; box-shadow: var(--shadow-xs);
+    font-family: inherit; font-size: var(--text-base); color: var(--text-primary); background: var(--card-bg);
+    width: 100%;
     appearance: none; -webkit-appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666666' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 10px center;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
   }
-  select:hover { border-color: #B6BBC5; }
-  select:focus { outline: none; border-color: var(--mapc-navy); box-shadow: 0 0 0 3px rgba(31,78,121,0.15); }
+  select:hover { border-color: var(--border-strong); }
+  select:focus { outline: none; border-color: var(--mapc-navy); box-shadow: var(--focus-ring); }
 
   /* Strip of swatches showing the selected color ramp, right under the dropdown */
   #ramp-select { border-radius: var(--radius-sm) var(--radius-sm) 0 0; border-bottom: none; }
@@ -120,15 +145,15 @@
   .classes-btn-group { display: flex; }
   .classes-btn {
     flex: 1; background: var(--sidebar-bg); border: 1px solid var(--input-border); color: var(--text-secondary);
-    font-family: inherit; font-weight: 600; font-size: 13px; padding: 7px 10px; cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    font-family: inherit; font-weight: 600; font-size: var(--text-base); padding: 7px 10px; cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   }
   .classes-btn + .classes-btn { border-left: none; }
   .classes-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
   .classes-btn:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
   .classes-btn[aria-pressed="true"] { background: var(--mapc-navy); border-color: var(--mapc-navy); color: #FFFFFF; }
-  .classes-btn:hover:not([aria-pressed="true"]) { background: #F5F9FD; color: var(--mapc-navy); }
-  .classes-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); position: relative; z-index: 1; }
+  .classes-btn:hover:not([aria-pressed="true"]) { background: var(--tint-hover); color: var(--mapc-navy); }
+  .classes-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); position: relative; z-index: 1; }
 
   /* Search box and scrollable town list share one bordered container */
   .town-filter-wrap {
@@ -138,37 +163,37 @@
   .town-search {
     position: sticky; top: 0; z-index: 1;
     border: none; border-bottom: 1px solid var(--card-border); border-radius: 0;
-    padding: 9px 10px; font-family: inherit; font-size: 12.5px; color: var(--text-primary); background: var(--card-bg);
+    padding: 9px 10px; font-family: inherit; font-size: var(--text-sm); color: var(--text-primary); background: var(--card-bg);
     width: 100%; box-shadow: none; margin-bottom: 0;
-    transition: background 0.15s ease;
+    transition: background var(--dur-fast) var(--ease);
   }
   /* Inset focus ring so it isn't clipped by the wrapper's rounded corners */
-  .town-search:focus { outline: none; background: #F5F9FD; box-shadow: inset 0 0 0 2px var(--mapc-navy); }
+  .town-search:focus { outline: none; background: var(--tint-hover); box-shadow: inset 0 0 0 2px var(--mapc-navy); }
 
   .upload-zone {
     border: 1.5px dashed var(--input-border); border-radius: var(--radius-md); padding: 16px 12px; text-align: center;
-    font-size: 12px; color: var(--text-secondary); cursor: pointer; background: var(--card-bg);
+    font-size: var(--text-sm); color: var(--text-secondary); cursor: pointer; background: var(--card-bg);
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
   }
-  .upload-zone:hover { border-color: var(--mapc-navy); background: #F5F9FD; }
-  .upload-zone:focus-visible { outline: none; border-color: var(--mapc-navy); box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .upload-zone:hover { border-color: var(--mapc-navy); background: var(--tint-hover); }
+  .upload-zone:focus-visible { outline: none; border-color: var(--mapc-navy); box-shadow: var(--focus-ring); }
   .upload-zone svg { opacity: 0.55; }
-  .upload-zone.dragover { border-color: var(--mapc-navy); background: #E8F4FD; }
+  .upload-zone.dragover { border-color: var(--mapc-navy); background: var(--tint-active); }
   .upload-zone strong { color: var(--text-primary); }
 
   .btn-primary, .btn-secondary {
     padding: 9px 14px; border-radius: var(--radius-sm); font-family: inherit; font-weight: 600;
-    font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+    font-size: var(--text-base); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
   }
   .btn-primary { background: var(--mapc-navy); color: #FFFFFF; border: 1px solid var(--mapc-navy); }
   .btn-primary:hover { background: var(--mapc-navy-dark); box-shadow: var(--shadow-sm); }
   .btn-secondary { background: var(--card-bg); color: var(--mapc-navy); border: 1px solid var(--input-border); }
-  .btn-secondary:hover { border-color: var(--mapc-navy); background: #F5F9FD; }
+  .btn-secondary:hover { border-color: var(--mapc-navy); background: var(--tint-hover); }
   .btn-primary:active, .btn-secondary:active { transform: translateY(1px); }
   .btn-primary:focus-visible, .btn-secondary:focus-visible {
-    outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.3);
+    outline: none; box-shadow: var(--focus-ring);
   }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-row .btn-primary, .btn-row .btn-secondary { flex: 1; }
@@ -177,11 +202,11 @@
   .town-filter { max-height: 220px; overflow-y: auto; padding: 8px; }
   .town-filter::-webkit-scrollbar { width: 7px; }
   .town-filter::-webkit-scrollbar-track { background: transparent; }
-  .town-filter::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
+  .town-filter::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 999px; }
   .subregion-group { margin-bottom: 2px; border-radius: var(--radius-sm); }
   .subregion-group:not(:last-child) { border-bottom: 1px solid #EFF1F4; padding-bottom: 3px; margin-bottom: 3px; }
-  .subregion-header { font-weight: 700; font-size: 11.5px; color: var(--mapc-navy); text-transform: uppercase; letter-spacing: 0.03em; display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 4px; border-radius: 4px; }
-  .subregion-header:hover { background: #F5F9FD; }
+  .subregion-header { font-weight: 700; font-size: var(--text-xs); color: var(--mapc-navy); text-transform: uppercase; letter-spacing: 0.04em; display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 5px 4px; border-radius: 4px; }
+  .subregion-header:hover { background: var(--tint-hover); }
   .subregion-count { font-weight: 400; color: var(--text-secondary); text-transform: none; letter-spacing: normal; }
   /* Separate collapse button, so it doesn't interfere with selecting the subregion */
   .subregion-toggle-btn {
@@ -190,19 +215,19 @@
     display: flex; align-items: center; justify-content: center;
   }
   .subregion-toggle-btn:hover { background: #E4EBF3; }
-  .subregion-toggle-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
-  .chevron-icon { transition: transform 0.15s ease; }
+  .subregion-toggle-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .chevron-icon { transition: transform var(--dur-fast) var(--ease); }
   .subregion-toggle-btn[aria-expanded="true"] .chevron-icon { transform: rotate(180deg); }
   .subregion-group.collapsed .subregion-towns { display: none; }
   .subregion-towns { padding-left: 6px; }
-  .town-item { font-size: 12.5px; display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; }
-  .town-item:hover { background: #F5F9FD; }
+  .town-item { font-size: var(--text-sm); display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; }
+  .town-item:hover { background: var(--tint-hover); }
   /* Custom checkbox styling, with an inline SVG checkmark when checked */
   .town-filter input[type=checkbox] {
     appearance: none; -webkit-appearance: none; margin: 0;
     width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
     border: 1.5px solid var(--input-border); border-radius: 4px; background: var(--card-bg);
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   }
   .town-filter input[type=checkbox]:hover { border-color: var(--mapc-navy); }
   .town-filter input[type=checkbox]:checked {
@@ -213,31 +238,31 @@
   .town-filter input[type=checkbox]:focus-visible { outline: 2px solid var(--mapc-navy); outline-offset: 2px; border-radius: 4px; }
   .text-link-btn {
     background: none; border: none; padding: 0; margin: 0; cursor: pointer;
-    font-family: inherit; font-weight: 600; font-size: 11px; color: var(--mapc-navy);
+    font-family: inherit; font-weight: 600; font-size: var(--text-xs); color: var(--mapc-navy);
     text-decoration: underline; text-underline-offset: 2px;
   }
   .text-link-btn:hover { color: var(--mapc-navy-dark); }
-  .text-link-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); border-radius: 2px; }
+  .text-link-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 2px; }
   .muni-actions { display: flex; gap: 10px; flex-shrink: 0; }
 
   #warning-panel {
     display: none; background: #FFF8ED; border: 1px solid #F0C878; border-left: 3px solid #E6A23C; border-radius: var(--radius-sm);
-    padding: 9px 11px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;
+    padding: 9px 11px; font-size: var(--text-sm); margin-bottom: 14px; line-height: 1.4;
   }
 
   /* ---------- Toggle switches ---------- */
   /* Extra padding gives the switch a larger tap target */
-  label.switch-row { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 12.5px; cursor: pointer; gap: 10px; margin-bottom: 0; padding: 8px 2px; min-height: 44px; }
+  label.switch-row { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: var(--text-sm); cursor: pointer; gap: 10px; margin-bottom: 0; padding: 8px 2px; min-height: 44px; }
   .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
   .switch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
-  .switch-track { position: absolute; inset: 0; background: #D3D7DE; border-radius: 999px; transition: background 0.18s ease; }
+  .switch-track { position: absolute; inset: 0; background: var(--scrollbar-thumb); border-radius: 999px; transition: background var(--dur-fast) var(--ease); }
   .switch-track::before {
     content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #FFFFFF;
-    border-radius: 50%; transition: transform 0.18s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    border-radius: 50%; transition: transform var(--dur-fast) var(--ease); box-shadow: 0 1px 2px rgba(0,0,0,0.25);
   }
   .switch input:checked + .switch-track { background: var(--mapc-navy); }
   .switch input:checked + .switch-track::before { transform: translateX(16px); }
-  .switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .switch input:focus-visible + .switch-track { box-shadow: var(--focus-ring); }
 
   #main { flex: 1; position: relative; display: flex; flex-direction: row; }
   /* Positioning context so the legend stays anchored within the map area */
@@ -246,45 +271,45 @@
   #legend {
     background: rgba(255,255,255,0.97); border: 1px solid var(--card-border); border-radius: var(--radius-md);
     padding: 12px 14px; position: absolute; right: 12px; bottom: 12px; z-index: 500;
-    font-size: 12px; max-width: 260px; box-shadow: var(--shadow-md);
+    font-size: var(--text-sm); max-width: 260px; box-shadow: var(--shadow-md);
   }
   .legend-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-  #legend .legend-title { font-weight: 700; font-size: 13px; color: var(--mapc-navy); }
+  #legend .legend-title { font-weight: 700; font-size: var(--text-base); color: var(--mapc-navy); }
   .legend-clear-btn {
     background: none; border: none; color: var(--mapc-navy); font-family: inherit; font-weight: 600;
-    font-size: 10.5px; cursor: pointer; padding: 2px 6px; border-radius: 4px; text-decoration: underline;
+    font-size: var(--text-xs); cursor: pointer; padding: 2px 6px; border-radius: 4px; text-decoration: underline;
     flex-shrink: 0;
   }
-  .legend-clear-btn:hover { background: #F5F9FD; }
-  .legend-clear-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .legend-clear-btn:hover { background: var(--tint-hover); }
+  .legend-clear-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   /* Grid layout keeps swatch, label, histogram, and count aligned across rows */
   .legend-row { display: grid; grid-template-columns: 20px 1fr 40px 24px; align-items: center; gap: 5px; margin: 4px 0; }
   .legend-swatch { width: 20px; height: 14px; flex-shrink: 0; border-radius: 3px; border: 1px solid rgba(0,0,0,0.08); }
-  .legend-label { font-size: 12px; }
+  .legend-label { font-size: var(--text-sm); }
   /* Clicking a legend row isolates that class on the map */
-  .legend-row-clickable { cursor: pointer; border-radius: 4px; transition: background 0.15s ease; }
-  .legend-row-clickable:hover { background: #F5F9FD; }
-  .legend-row-clickable[aria-pressed="true"] { background: #E8F4FD; }
-  .legend-row-clickable:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); }
+  .legend-row-clickable { cursor: pointer; border-radius: 4px; transition: background var(--dur-fast) var(--ease); }
+  .legend-row-clickable:hover { background: var(--tint-hover); }
+  .legend-row-clickable[aria-pressed="true"] { background: var(--tint-active); }
+  .legend-row-clickable:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   /* Mini histogram: bar length shows each class's share of municipalities */
   .legend-hist { background: #EEF0F3; border-radius: 2px; height: 8px; overflow: hidden; }
   .legend-hist-bar { display: block; height: 100%; min-width: 2px; background: var(--mapc-navy); opacity: 0.55; border-radius: 2px; }
   .legend-hist-bar.no-data-bar { background: #9AA0AA; opacity: 0.8; }
-  .legend-count { text-align: right; font-size: 10.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .legend-count { text-align: right; font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .legend-rule { border-top: 1px solid var(--card-border); margin: 6px 0; }
   .leaflet-tooltip.mapc-tooltip {
-    font-family: inherit; font-size: 13px; color: var(--text-primary); background: var(--card-bg);
+    font-family: inherit; font-size: var(--text-base); color: var(--text-primary); background: var(--card-bg);
     border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 8px 10px; box-shadow: var(--shadow-md);
   }
   /* Hide Leaflet's default focus ring; hover styling already shows selection */
   .leaflet-interactive:focus, .leaflet-container path:focus { outline: none; }
   /* Style Leaflet's zoom control to match the sidebar's card look */
   .leaflet-bar { border: 1px solid var(--card-border) !important; border-radius: var(--radius-sm) !important; box-shadow: var(--shadow-sm) !important; overflow: hidden; }
-  .leaflet-bar a { background: var(--card-bg) !important; color: var(--mapc-navy) !important; transition: background 0.15s ease; }
-  .leaflet-bar a:hover { background: #F5F9FD !important; }
+  .leaflet-bar a { background: var(--card-bg) !important; color: var(--mapc-navy) !important; transition: background var(--dur-fast) var(--ease); }
+  .leaflet-bar a:hover { background: var(--tint-hover) !important; }
   .home-btn { width: 26px; height: 26px; line-height: 26px; text-align: center; background: var(--card-bg);
-    cursor: pointer; font-size: 16px; border: none; display: block; padding: 0; color: var(--mapc-navy); }
-  .home-btn:hover { background: #F5F9FD; }
+    cursor: pointer; font-size: var(--text-lg); border: none; display: block; padding: 0; color: var(--mapc-navy); }
+  .home-btn:hover { background: var(--tint-hover); }
 
   /* Spatial search box, placed at the map's top-left corner */
   .spatial-search-control { width: 230px; font-family: inherit; }
@@ -296,7 +321,7 @@
   .spatial-search-box svg { flex-shrink: 0; color: var(--text-secondary); }
   .spatial-search-box:focus-within { box-shadow: 0 0 0 2px var(--mapc-navy); }
   #spatial-search-input {
-    border: none; outline: none; background: transparent; font-family: inherit; font-size: 12.5px;
+    border: none; outline: none; background: transparent; font-family: inherit; font-size: var(--text-sm);
     color: var(--text-primary); padding: 8px 0; width: 100%;
   }
   .spatial-search-results {
@@ -306,27 +331,27 @@
   }
   .spatial-search-results.open { display: block; }
   .spatial-search-results li {
-    padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12.5px;
+    padding: 7px 9px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm);
     display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
   }
-  .spatial-search-results li:hover, .spatial-search-results li.active { background: #F5F9FD; }
-  .spatial-search-subregion { font-size: 10.5px; color: var(--text-secondary); flex-shrink: 0; }
+  .spatial-search-results li:hover, .spatial-search-results li.active { background: var(--tint-hover); }
+  .spatial-search-subregion { font-size: var(--text-xs); color: var(--text-secondary); flex-shrink: 0; }
   .spatial-search-empty { color: var(--text-secondary); cursor: default; }
   .spatial-search-empty:hover { background: none; }
   .spatial-search-highlight { animation: spatial-search-pulse 1.1s ease-in-out 2; }
   @keyframes spatial-search-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-  .tt-name { font-weight: 600; font-size: 14px; color: var(--mapc-navy); }
-  .tt-subregion { font-size: 12px; color: var(--text-secondary); }
-  .tt-value { font-size: 13px; margin-top: 4px; }
+  .tt-name { font-weight: 600; font-size: var(--text-md); color: var(--mapc-navy); }
+  .tt-subregion { font-size: var(--text-sm); color: var(--text-secondary); }
+  .tt-value { font-size: var(--text-base); margin-top: 4px; }
   .town-label {
     background: none; border: none; box-shadow: none; pointer-events: none;
-    font-family: 'Open Sans', sans-serif; font-size: 10px; font-weight: 600;
+    font-family: 'Public Sans', sans-serif; font-size: var(--text-2xs); font-weight: 600;
     color: var(--mapc-navy); white-space: nowrap;
     text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
   }
   #attribution {
-    font-size: 11px; color: #999999; padding: 5px 10px; background: rgba(255,255,255,0.92);
+    font-size: var(--text-xs); color: #999999; padding: 5px 10px; background: rgba(255,255,255,0.92);
     position: absolute; left: 12px; bottom: 12px; z-index: 500; border-radius: var(--radius-sm);
     border: 1px solid var(--card-border);
   }
@@ -338,43 +363,43 @@
   }
   #data-panel-tabs { display: flex; gap: 4px; padding: 10px 14px 0; flex-shrink: 0; border-bottom: 1px solid var(--card-border); }
   .panel-tab {
-    background: none; border: none; font-family: inherit; font-weight: 600; font-size: 12.5px; color: var(--text-secondary);
+    background: none; border: none; font-family: inherit; font-weight: 600; font-size: var(--text-sm); color: var(--text-secondary);
     padding: 8px 12px; cursor: pointer; border-radius: var(--radius-sm) var(--radius-sm) 0 0; margin-bottom: -1px;
-    border-bottom: 2px solid transparent; transition: color 0.15s ease, border-color 0.15s ease;
+    border-bottom: 2px solid transparent; transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   }
   .panel-tab:hover { color: var(--mapc-navy); }
   .panel-tab[aria-pressed="true"] { color: var(--mapc-navy); border-bottom-color: var(--mapc-navy); }
-  .panel-tab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); border-radius: var(--radius-sm); }
+  .panel-tab:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
   /* Hidden unless the Pie or Bar tab is active */
   #chart-groupby { display: none; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--card-border); }
-  .groupby-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+  .groupby-label { font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
   .groupby-btn {
     background: var(--sidebar-bg); border: 1px solid var(--input-border); color: var(--text-secondary);
-    font-family: inherit; font-weight: 600; font-size: 11.5px; padding: 5px 10px; cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    font-family: inherit; font-weight: 600; font-size: var(--text-xs); padding: 5px 10px; cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
   }
   .groupby-btn + .groupby-btn { border-left: none; }
   #groupby-subregion { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
   #groupby-municipality { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
   .groupby-btn[aria-pressed="true"] { background: var(--mapc-navy); border-color: var(--mapc-navy); color: #FFFFFF; }
-  .groupby-btn:hover:not([aria-pressed="true"]) { background: #F5F9FD; color: var(--mapc-navy); }
-  .groupby-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(31,78,121,0.25); position: relative; z-index: 1; }
+  .groupby-btn:hover:not([aria-pressed="true"]) { background: var(--tint-hover); color: var(--mapc-navy); }
+  .groupby-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); position: relative; z-index: 1; }
   #data-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 14px; }
-  #data-panel-body table { border-collapse: separate; border-spacing: 0; font-size: 12px; width: 100%; border: 1px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; }
-  #data-panel-body th, #data-panel-body td { border-bottom: 1px solid var(--card-border); padding: 6px 10px; text-align: right; }
+  #data-panel-body table { border-collapse: separate; border-spacing: 0; font-size: var(--text-sm); width: 100%; border: 1px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; }
+  #data-panel-body th, #data-panel-body td { border-bottom: 1px solid var(--card-border); padding: 6px 10px; text-align: right; font-variant-numeric: tabular-nums; }
   #data-panel-body th:first-child, #data-panel-body td:first-child { text-align: left; }
-  #data-panel-body th { background: var(--sidebar-bg); font-weight: 700; color: var(--mapc-navy); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #data-panel-body th { background: var(--sidebar-bg); font-weight: 700; color: var(--mapc-navy); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; }
   #data-panel-body tr:last-child td { border-bottom: none; }
 
   /* ---------- Chart widgets (pie / bar) ---------- */
-  .chart-title { font-weight: 700; font-size: 13px; color: var(--mapc-navy); margin-bottom: 12px; }
-  .chart-empty { font-size: 12.5px; color: var(--text-secondary); text-align: center; padding: 32px 8px; }
+  .chart-title { font-weight: 700; font-size: var(--text-base); color: var(--mapc-navy); margin-bottom: 12px; }
+  .chart-empty { font-size: var(--text-sm); color: var(--text-secondary); text-align: center; padding: 32px 8px; }
   .pie-chart-svg { display: block; width: 100%; max-width: 220px; margin: 0 auto; }
-  .chart-legend { margin-top: 14px; font-size: 11.5px; }
+  .chart-legend { margin-top: 14px; font-size: var(--text-xs); }
   .chart-legend-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
   .chart-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
   .bar-chart-wrap { display: flex; flex-direction: column; gap: 5px; }
-  .bar-row { display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; gap: 8px; font-size: 11.5px; }
+  .bar-row { display: grid; grid-template-columns: 108px 1fr 64px; align-items: center; gap: 8px; font-size: var(--text-xs); }
   .bar-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
   .bar-row-track { background: #F0F1F4; border-radius: 3px; height: 12px; overflow: hidden; }
   .bar-row-fill { height: 100%; border-radius: 3px; background: var(--mapc-navy); min-width: 2px; }
@@ -394,18 +419,18 @@
     #app { position: relative; }
     #controls {
       position: absolute; left: 0; top: 0; bottom: 0; z-index: 1000;
-      transition: transform 0.28s ease; box-shadow: var(--shadow-md);
+      transition: transform var(--dur-slow) var(--ease); box-shadow: var(--shadow-md);
     }
     #controls-handle {
       display: flex; align-items: center; justify-content: center;
       position: absolute; top: 50%; left: 300px; transform: translateY(-50%);
       width: 22px; height: 56px; background: var(--card-bg); color: var(--mapc-navy);
       border: 1px solid var(--card-border); border-left: none;
-      border-radius: 0 var(--radius-md) var(--radius-md) 0; cursor: pointer; z-index: 1001; font-size: 15px;
-      transition: left 0.28s ease, background 0.15s ease; box-shadow: var(--shadow-sm);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0; cursor: pointer; z-index: 1001; font-size: var(--text-md);
+      transition: left var(--dur-slow) var(--ease), background var(--dur-fast) var(--ease); box-shadow: var(--shadow-sm);
     }
-    #controls-handle:hover { background: #F5F9FD; }
-    #handle-icon { display: inline-block; transition: transform 0.28s ease; }
+    #controls-handle:hover { background: var(--tint-hover); }
+    #handle-icon { display: inline-block; transition: transform var(--dur-slow) var(--ease); }
     #app.docked #controls { transform: translateX(-100%); }
     #app.docked #controls-handle { left: 0; }
     #app.docked #handle-icon { transform: rotate(180deg); }
@@ -413,6 +438,19 @@
   /* MAPC region outline: dark stroke + drop-shadow reads as a slightly raised edge */
   .region-outline-path {
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(0,0,0,0.8));
+  }
+
+  /* Surfaces the browser draws for us still belong to the palette */
+  ::selection { background: rgba(31, 78, 121, 0.18); }
+  input, select { caret-color: var(--mapc-navy); }
+  :root { accent-color: var(--mapc-navy); }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Panel travel stops; state feedback stays, so controls still confirm
+       themselves. The search pulse runs once instead of twice -- the found
+       town is still called out, without the repeat flash. */
+    :root { --dur-slow: var(--dur-fast); }
+    .spatial-search-highlight { animation-iteration-count: 1; }
   }
 </style>
 </head>
@@ -494,9 +532,9 @@
         <div class="control-group">
           <label for="basemap-select">Basemap</label>
           <select id="basemap-select">
-            <option value="carto-light" selected>Light</option>
-            <option value="carto-voyager">Voyager</option>
-            <option value="carto-dark">Dark</option>
+            <option value="light" selected>Light</option>
+            <option value="streets">Streets</option>
+            <option value="dark">Dark</option>
             <option value="osm">OpenStreetMap</option>
           </select>
         </div>
@@ -504,7 +542,7 @@
 
       <section class="control-section">
         <div class="section-label-row">
-          <h2 class="section-label">Municipalities <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--text-secondary);">(<span id="town-count"></span> shown)</span></h2>
+          <h2 class="section-label">Municipalities <span class="section-label-count">(<span id="town-count"></span> shown)</span></h2>
           <div class="muni-actions">
             <button type="button" class="text-link-btn" id="select-all">Select All</button>
             <button type="button" class="text-link-btn" id="deselect-all">Deselect All</button>
@@ -589,14 +627,14 @@ const state = {
   classMethod: 'jenks',
   numClasses: 5,
   colorRamp: 'mapc-blue',
-  basemap: 'carto-light',
+  basemap: 'light',
   workbook: null,        // parsed SheetJS workbook, kept so switching sheets doesn't need re-upload
   panelView: 'table',    // which tab is active in the data panel: 'table' | 'pie' | 'bar'
   chartGroupBy: 'subregion',  // shared by the Pie and Bar tabs: 'subregion' | 'municipality'
   isolatedClass: null    // legend-click isolation: null | 0..numClasses-1 | 'nodata'
 };
 
-let map, choroplethLayer, baseLayer;
+let map, choroplethLayer, baseLayer, referenceLayer;
 const RAMPS = {
   'mapc-blue':  ['#D6E8F7','#93C4DE','#4A97C9','#1F6FB5','#1F4E79'],
   'mapc-green': ['#E8F5E0','#B8DFA3','#88C96D','#6BAA3D','#3D7A1C'],
@@ -608,12 +646,22 @@ const RAMPS = {
   'ylgnbu':     ['#FFFFCC','#A1DAB4','#41B6C4','#2C7FB8','#253494']
 };
 const NO_DATA_COLOR = '#D9D9D9';
-// Free basemap tile sets, no API key required
+// Basemap tile sets that need no API key.
+// CARTO's basemaps.cartocdn.com now stamps "API KEY REQUIRED" across every
+// unauthenticated tile, so these are Esri's public ArcGIS Online services.
+// The gray canvases ship labels as a separate `reference` layer drawn over the
+// base, and stop at native zoom 16 -- past that Leaflet upsamples z16 rather
+// than requesting tiles that come back blank.
 const BASEMAPS = {
-  'carto-light':   { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'carto-voyager': { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'carto-dark':    { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>', subdomains: 'abcd' },
-  'osm':           { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', subdomains: 'abc' }
+  'light':   { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+               reference: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>', maxNativeZoom: 16 },
+  'streets': { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>' },
+  'dark':    { url: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+               reference: 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+               attribution: '&copy; <a href="https://www.esri.com/">Esri</a>', maxNativeZoom: 16 },
+  'osm':     { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', subdomains: 'abc' }
 };
 
 // Categorical colors for subregions (ColorBrewer "Paired"), separate from the choropleth ramps above
@@ -782,11 +830,18 @@ const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
 
 // Base tiles always render below the choropleth and region outline layers
 function setBasemap(key) {
-  const def = BASEMAPS[key] || BASEMAPS['carto-light'];
+  const def = BASEMAPS[key] || BASEMAPS['light'];
   if (baseLayer) map.removeLayer(baseLayer);
-  baseLayer = L.tileLayer(def.url, {
-    attribution: def.attribution, subdomains: def.subdomains, maxZoom: 19, crossOrigin: true
-  }).addTo(map);
+  if (referenceLayer) { map.removeLayer(referenceLayer); referenceLayer = null; }
+  const opts = {
+    attribution: def.attribution, subdomains: def.subdomains || 'abc',
+    maxZoom: 19, maxNativeZoom: def.maxNativeZoom || 19, crossOrigin: true
+  };
+  baseLayer = L.tileLayer(def.url, opts).addTo(map);
+  // Labels ride in the same tile pane, so they stay under the choropleth
+  if (def.reference) {
+    referenceLayer = L.tileLayer(def.reference, Object.assign({}, opts, { attribution: '' })).addTo(map);
+  }
 }
 
 function initMap() {
