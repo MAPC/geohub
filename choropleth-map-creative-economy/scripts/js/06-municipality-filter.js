@@ -1,8 +1,8 @@
 function populateTownFilter() {
   const container = document.getElementById('town-filter');
   const bySubregion = {};
-  for (const [key, v] of Object.entries(MAPC_LOOKUP)) {
-    if (key === 'manchester') continue; // alias, skip duplicate row
+  // MUNI_LIST, not MAPC_LOOKUP, so name aliases don't list a town twice
+  for (const v of MUNI_LIST) {
     (bySubregion[v.subregion] = bySubregion[v.subregion] || []).push(v);
   }
   let html = '';
