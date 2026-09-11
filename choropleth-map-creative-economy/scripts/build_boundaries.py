@@ -2,8 +2,8 @@
 """
 build_boundaries.py
 Converts the official MAPC-provided geojson files in data/ into the three
-boundary assets build_map.py inlines into mapc-choropleth-map.html:
-
+assets build_map.py inlines into index.html: mapc-101-boundaries.topojson,
+mapc-lookup.json, and mapc-region-outline.topojson.
 """
 
 import json
@@ -22,9 +22,8 @@ ASSETS = os.path.join(REPO, "assets")
 
 TOWNS_SRC = os.path.join(DATA, "MAPC_Towns_poly_2025.geojson")
 SUBREGIONS_SRC = os.path.join(DATA, "MAPC_Subregional_Boundaries.geojson")
-# data/MAPC_Boundary__(single_outline).geojson is no longer read -- the region outline is
-# now derived from the municipality boundaries themselves (see main()) so it can't diverge
-# from the fill polygons it's drawn on top of.
+# The region outline is derived from the town polygons (see main()), so it can't
+# diverge from the fills it's drawn on top of.
 
 SIMPLIFY_TOLERANCE = 0.00005  # ~6m
 
@@ -59,7 +58,7 @@ def simplify_and_repair(gdf, toposimplify, object_name):
     arcs (e.g. a mainland arc crossing a small inlet/island arc of the same town), not at the
     shared border with a neighbor -- so re-deriving the topology from the repaired shapes
     (no further toposimplify needed, they're already at final precision) keeps adjacent
-    towns glued together. See CLAUDE.md for the underlying rationale.
+    towns glued together.
 
     The re-derive step still quantizes (at a much finer 1e6 grid than the default 1e4) --
     skipping quantization entirely balloons the file ~3x (measured: 82KB->258KB for the
@@ -125,11 +124,13 @@ def main():
     # The official file calls it "Manchester"; spreadsheets (and the Census) commonly
     # use the full "Manchester-by-the-Sea" — alias the long form to the same entry.
     lookup[normalize("Manchester-by-the-Sea")] = lookup[normalize("Manchester")]
+    # "Foxboro" is the everyday spelling of the official "Foxborough"
+    lookup[normalize("Foxboro")] = lookup[normalize("Foxborough")]
 
     lookup_out = os.path.join(ASSETS, "mapc-lookup.json")
     with open(lookup_out, "w") as f:
         json.dump(lookup, f)
-    print(f"Wrote {lookup_out} ({len(lookup)} entries, {len(joined)} towns + alias)")
+    print(f"Wrote {lookup_out} ({len(lookup)} entries, {len(joined)} towns + aliases)")
     town_union = unary_union(topo.to_gdf().geometry.values)
     town_union = repair_invalid(town_union)
     outline_topo = as_topology(town_union, "outline")
