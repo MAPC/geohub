@@ -45,22 +45,16 @@ const BASEMAPS = {
 // Categorical colors for subregions (ColorBrewer "Paired"), separate from the choropleth ramps above
 const SUBREGION_PALETTE = ['#A6CEE3','#1F78B4','#B2DF8A','#33A02C','#FB9A99','#E31A1C','#FDBF6F','#FF7F00','#CAB2D6','#6A3D9A','#FFFF99','#B15928'];
 
-function getMuniList() {
-  const seen = new Set(), list = [];
-  for (const v of Object.values(MAPC_LOOKUP)) {
-    const id = String(v.muniId);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    list.push(v);
-  }
-  return list;
-}
-const MUNI_LIST = getMuniList();
+// One entry per town; MAPC_LOOKUP also has alias keys pointing at the same town
 const MUNI_BY_ID = {};
-MUNI_LIST.forEach(m => { MUNI_BY_ID[String(m.muniId)] = m; });
+Object.values(MAPC_LOOKUP).forEach(m => { MUNI_BY_ID[m.muniId] = m; });
+const MUNI_LIST = Object.values(MUNI_BY_ID);
 const ALL_SUBREGIONS = Array.from(new Set(MUNI_LIST.map(m => m.subregion))).sort();
 const SUBREGION_COLOR = {};
 ALL_SUBREGIONS.forEach((sr, i) => { SUBREGION_COLOR[sr] = SUBREGION_PALETTE[i % SUBREGION_PALETTE.length]; });
+
+// Escapes uploaded-spreadsheet text (headers, cells) before it goes into innerHTML
+const esc = s => String(s).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
 
 // Cap chart entries at this many, grouping the rest into "Other"
 const PIE_TOP_N = 8;

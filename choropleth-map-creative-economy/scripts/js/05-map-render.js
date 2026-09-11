@@ -1,4 +1,6 @@
 const HOME_VIEW = { center: [42.36, -71.06], zoom: 10 };
+// Decoded once; the choropleth, labels, and search highlight all draw from it
+const MUNI_GEOJSON = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
 
 // Base tiles always render below the choropleth and region outline layers
 function setBasemap(key) {
@@ -86,8 +88,7 @@ let spotlightLayer = null;
 let spotlightTimer = null;
 
 function zoomAndHighlightMuni(muniId) {
-  const geojson = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
-  const feature = geojson.features.find(f => String(f.properties.muni_id) === muniId);
+  const feature = MUNI_GEOJSON.features.find(f => String(f.properties.muni_id) === muniId);
   if (!feature) return;
 
   if (spotlightLayer) { map.removeLayer(spotlightLayer); spotlightLayer = null; }
@@ -167,9 +168,8 @@ function initSpatialSearch() {
 let labelLayer;
 
 function initLabels() {
-  const geojson = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
   labelLayer = L.layerGroup(
-    geojson.features.map(feature => L.marker(L.geoJSON(feature).getBounds().getCenter(), {
+    MUNI_GEOJSON.features.map(feature => L.marker(L.geoJSON(feature).getBounds().getCenter(), {
       icon: L.divIcon({ className: 'town-label', html: feature.properties.NAME, iconSize: null }),
       interactive: false
     }))
@@ -180,7 +180,11 @@ function formatValue(col, value) {
   if (value === null || isNaN(value)) return 'No Data';
   const isCurrency = /\$|income|cost|price/i.test(col);
   const isPercent = /%|percent/i.test(col) ;
-  if (isPercent) return (value * 100).toFixed(1) + '%';
+  if (isPercent) {
+    // Fractions (0.125) or whole percents (12.5)? Any value past 1 means the column is already in percent units
+    const isWhole = state.data.some(r => r._muniId && Math.abs(parseFloat(r[col])) > 1);
+    return (isWhole ? value : value * 100).toFixed(1) + '%';
+  }
   if (isCurrency) return '$' + Math.round(value).toLocaleString('en-US');
   return Number.isInteger(value) ? value.toLocaleString('en-US') : value.toFixed(2);
 }
@@ -204,12 +208,10 @@ function renderChoropleth() {
     const idx = getClass(v);
     if (idx >= 0 && idx < classCounts.length) classCounts[idx]++;
   });
-  const selectedRowCount = state.data.filter(r => r._muniId && state.selectedTowns.has(r._muniId)).length;
-  const noDataCount = selectedRowCount - values.length;
+  // Includes selected towns missing from the file, since the map draws those as No Data too
+  const noDataCount = state.selectedTowns.size - values.length;
 
-  const geojson = topojson.feature(BOUNDARY_TOPOJSON, BOUNDARY_TOPOJSON.objects.municipalities);
-
-  choroplethLayer = L.geoJSON(geojson, {
+  choroplethLayer = L.geoJSON(MUNI_GEOJSON, {
     style: function(feature) {
       const muniId = String(feature.properties.muni_id);
       const isSelected = state.selectedTowns.has(muniId);
@@ -231,12 +233,11 @@ function renderChoropleth() {
       const muniId = String(feature.properties.muni_id);
       const row = state.data.find(r => r._muniId === muniId);
       const value = row ? parseFloat(row[col]) : null;
-      const lookupEntry = Object.values(MAPC_LOOKUP).find(v => String(v.muniId) === muniId);
-      const subregion = lookupEntry ? lookupEntry.subregion : '';
+      const subregion = MUNI_BY_ID[muniId] ? MUNI_BY_ID[muniId].subregion : '';
       layer.bindTooltip(
         '<div class="tt-name">' + feature.properties.NAME + '</div>' +
         '<div class="tt-subregion">' + subregion + '</div>' +
-        '<div class="tt-value">' + col + ': ' + formatValue(col, isNaN(value) ? null : value) + '</div>',
+        '<div class="tt-value">' + esc(col) + ': ' + formatValue(col, isNaN(value) ? null : value) + '</div>',
         { className: 'mapc-tooltip', direction: 'right', offset: [10, 0], sticky: true }
       );
       layer.on({
@@ -259,7 +260,7 @@ function updateRampPreview(colors) {
 
 function updateLegend(breaks, colors, col, classCounts, noDataCount) {
   const el = document.getElementById('legend');
-  let title = col.length > 30 ? col.slice(0, 27) + '...' : col;
+  const title = esc(col.length > 30 ? col.slice(0, 27) + '...' : col);
   const isolating = state.isolatedClass !== null;
   let html = '<div class="legend-title-row"><span class="legend-title">' + title + '</span>' +
     (isolating ? '<button type="button" id="legend-clear-isolation" class="legend-clear-btn">Show all</button>' : '') +

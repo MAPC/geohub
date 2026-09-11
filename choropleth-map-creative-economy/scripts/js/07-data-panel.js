@@ -14,7 +14,7 @@ function renderTable() {
   const body = document.getElementById('data-panel-body');
   const col = state.selectedColumn;
   const rows = state.data.filter(r => r._muniId && state.selectedTowns.has(r._muniId)).sort((a, b) => (a._canonical || '').localeCompare(b._canonical || ''));
-  let html = '<table><thead><tr><th>Municipality</th><th>' + col + '</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Municipality</th><th>' + esc(col) + '</th></tr></thead><tbody>';
   for (const r of rows) {
     html += '<tr><td>' + r._canonical + '</td><td>' + formatValue(col, parseFloat(r[col])) + '</td></tr>';
   }
@@ -56,13 +56,13 @@ function computeChartEntries(col) {
       .filter(e => !isNaN(e.value) && e.value > 0);
     const entries = topNPlusOther(raw, PIE_TOP_N);
     entries.forEach((e, i) => { e.color = e.label.indexOf('Other (') === 0 ? OTHER_SLICE_COLOR : SUBREGION_PALETTE[i % SUBREGION_PALETTE.length]; });
-    return { entries, title: col + ' by municipality' };
+    return { entries, title: esc(col) + ' by municipality' };
   }
   const entries = Object.entries(sumBySubregion(col))
     .filter(([, v]) => v > 0)
     .map(([label, value]) => ({ label, value, color: SUBREGION_COLOR[label] || '#999999' }))
     .sort((a, b) => b.value - a.value);
-  return { entries, title: col + ' by subregion' };
+  return { entries, title: esc(col) + ' by subregion' };
 }
 
 // Renders the pie chart for the currently selected towns and column
@@ -121,13 +121,13 @@ function renderBarChart() {
   let rows, title;
   if (state.chartGroupBy === 'subregion') {
     rows = Object.entries(sumBySubregion(col)).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-    title = col + ' by subregion';
+    title = esc(col) + ' by subregion';
   } else {
     rows = state.data
       .filter(r => r._muniId && state.selectedTowns.has(r._muniId))
       .map(r => ({ name: r._canonical, value: parseFloat(r[col]) }))
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    title = col;
+    title = esc(col);
   }
 
   if (!rows.length) {

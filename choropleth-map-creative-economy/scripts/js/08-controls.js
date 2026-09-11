@@ -1,7 +1,7 @@
 // UI wiring: dropdown population, all event listeners, docking, file upload/parsing.
 function populateColumnDropdown(columns) {
   const sel = document.getElementById('column-select');
-  sel.innerHTML = columns.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+  sel.replaceChildren(...columns.map(c => new Option(c, c)));
 }
 
 function bindControls() {
@@ -30,7 +30,7 @@ function bindControls() {
   });
   document.getElementById('select-all').addEventListener('click', () => {
     document.querySelectorAll('.town-toggle, .region-toggle').forEach(cb => cb.checked = true);
-    state.selectedTowns = new Set(Object.values(MAPC_LOOKUP).map(v => String(v.muniId)));
+    state.selectedTowns = new Set(Object.keys(MUNI_BY_ID));
     updateTownCount(); renderChoropleth();
   });
   document.getElementById('deselect-all').addEventListener('click', () => {
@@ -128,7 +128,7 @@ function handleFileUpload(file) {
 
     const sheetGroup = document.getElementById('sheet-group');
     const sheetSelect = document.getElementById('sheet-select');
-    sheetSelect.innerHTML = workbook.SheetNames.map(n => '<option value="' + n + '">' + n + '</option>').join('');
+    sheetSelect.replaceChildren(...workbook.SheetNames.map(n => new Option(n, n)));
     sheetGroup.style.display = workbook.SheetNames.length > 1 ? 'block' : 'none';
 
     loadSheet(workbook.SheetNames[0]);
