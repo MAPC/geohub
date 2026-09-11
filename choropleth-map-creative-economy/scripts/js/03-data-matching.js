@@ -1,6 +1,9 @@
 function normalizeName(name) {
   return String(name).trim().toLowerCase()
     .replace(/^(town of |city of |the )/, '')
+    // Trailing qualifiers: "Boston, MA", Census-style "Watertown Town city, Middlesex County, Massachusetts"
+    .replace(/\s*,.*$/, '')
+    .replace(/( town| city)+$/, '')
     .replace(/\bmt\.\b/g, 'mount')
     .replace(/\bst\.\b/g, 'saint')
     .replace(/\bn\.\s?/g, 'north ')
@@ -54,17 +57,23 @@ function matchAndRender(rows) {
   const numericCols = headers.filter(h => h !== townCol &&
     rows.some(r => r[h] !== null && r[h] !== '' && !isNaN(parseFloat(r[h]))));
 
-  const unmatched = [];
+  const unmatched = [], duplicates = [];
+  const seen = new Set();
   for (const r of rows) {
     const m = matchMunicipality(r[townCol]);
-    if (m) { r._muniId = String(m.muniId); r._canonical = m.canonical; }
-    else { unmatched.push(r[townCol]); }
+    if (!m) { unmatched.push(r[townCol]); continue; }
+    const id = String(m.muniId);
+    // Only the first row per town gets an id, so a repeat can't feed the breaks or chart totals twice
+    if (seen.has(id)) { duplicates.push(r[townCol]); continue; }
+    seen.add(id);
+    r._muniId = id; r._canonical = m.canonical;
   }
 
   state.data = rows;
-  state.selectedTowns = new Set(Object.values(MAPC_LOOKUP).map(v => String(v.muniId)));
+  state.selectedTowns = new Set(Object.keys(MUNI_BY_ID));
+  state.isolatedClass = null;
 
-  showUnmatchedWarning(unmatched);
+  showMatchWarnings(unmatched, duplicates);
   populateColumnDropdown(numericCols);
   populateTownFilter();
   state.selectedColumn = numericCols[0] || null;
@@ -72,10 +81,14 @@ function matchAndRender(rows) {
   renderChoropleth();
 }
 
-function showUnmatchedWarning(unmatched) {
+function showMatchWarnings(unmatched, duplicates) {
   const panel = document.getElementById('warning-panel');
-  if (!unmatched.length) { panel.style.display = 'none'; panel.textContent = ''; return; }
+  const parts = [];
+  if (unmatched.length) parts.push('<strong>' + unmatched.length + ' unmatched name(s)</strong> — not shown on map: ' +
+    unmatched.map(esc).join(', '));
+  if (duplicates.length) parts.push('<strong>' + duplicates.length + ' duplicate row(s)</strong> — only the first row per town is used: ' +
+    duplicates.map(esc).join(', '));
+  if (!parts.length) { panel.style.display = 'none'; panel.textContent = ''; return; }
   panel.style.display = 'block';
-  panel.innerHTML = '<strong>' + unmatched.length + ' unmatched name(s)</strong> — not shown on map: ' +
-    unmatched.map(n => String(n)).join(', ');
+  panel.innerHTML = parts.join('<br>');
 }
