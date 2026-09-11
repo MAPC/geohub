@@ -2,7 +2,7 @@
 """
 build_sample_data.py
 Converts the sample CSV in data/ into assets/sample-data.json, the preloaded
-dataset build_map.py inlines into mapc-choropleth-map.html so the map renders
+dataset build_map.py inlines into index.html so the map renders
 immediately without requiring an upload.
 
 Usage:
