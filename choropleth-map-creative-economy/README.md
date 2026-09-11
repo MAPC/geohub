@@ -11,6 +11,7 @@ Click `mapc.github.io/geohub/` which will open a geohub landing page and click `
 - Shows a preloaded sample dataset (business counts by town) right away, so there's something to look at immediately.
 - Lets you upload your own spreadsheet (`.xlsx`, `.xls`, or `.csv`) with a column of town names and any number of numeric columns.
 - Automatically matches town names to the correct municipality on the map, even with typos, abbreviations, or inconsistent spellings.
+- If a town appears more than once, only the first row is used and the duplicates are listed in a warning.
 - Colors each town based on whichever data column you choose.
 
 ## What you can do
