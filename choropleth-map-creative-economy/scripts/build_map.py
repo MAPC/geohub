@@ -22,11 +22,7 @@ PLACEHOLDERS = {
     "__SAMPLE_DATA__": os.path.join(REPO, "assets", "sample-data.json"),
     "__REGION_OUTLINE__": os.path.join(REPO, "assets", "mapc-region-outline.topojson"),
 }
-
-# Binary assets, inlined as base64 data URIs
-IMAGE_PLACEHOLDERS = {
-    "__MAPC_LOGO__": os.path.join(REPO, "assets", "logo.png"),
-}
+LOGO = os.path.join(REPO, "assets", "logo.png")
 
 # Matches only local files (styles.css, js/foo.js), not CDN <script> tags
 LOCAL_CSS_LINK_RE = re.compile(r'<link rel="stylesheet" href="((?!https?://)[^"]+\.css)">')
@@ -72,21 +68,17 @@ def main():
     )
     html = html.replace("<!DOCTYPE html>", "<!DOCTYPE html>\n" + banner, 1)
 
-    for placeholder, data_path in PLACEHOLDERS.items():
+    for placeholder in [*PLACEHOLDERS, "__MAPC_LOGO__"]:
         if placeholder not in html:
             raise ValueError(f"Template is missing placeholder {placeholder}")
+
+    for placeholder, data_path in PLACEHOLDERS.items():
         with open(data_path, encoding="utf-8") as f:
             data = json.load(f)  # validates it's well-formed before inlining
         html = html.replace(placeholder, json.dumps(data, separators=(",", ":")))
 
-    for placeholder, image_path in IMAGE_PLACEHOLDERS.items():
-        if placeholder not in html:
-            raise ValueError(f"Template is missing placeholder {placeholder}")
-        ext = os.path.splitext(image_path)[1].lstrip(".").lower()
-        mime = "image/svg+xml" if ext == "svg" else f"image/{ext}"
-        with open(image_path, "rb") as f:
-            encoded = base64.b64encode(f.read()).decode("ascii")
-        html = html.replace(placeholder, f"data:{mime};base64,{encoded}")
+    with open(LOGO, "rb") as f:
+        html = html.replace("__MAPC_LOGO__", "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii"))
 
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
